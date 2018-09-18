@@ -1,0 +1,6 @@
+Lilu.kext
+ThunderboltEnabler.xcodeproj/project.xcworkspace/xcuserdata
+ThunderboltEnabler.xcodeproj/xcuserdata
+build
+*.swp
+.DS_Store

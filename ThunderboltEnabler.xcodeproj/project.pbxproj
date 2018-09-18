@@ -1,0 +1,365 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 50;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		667A2637213F7F7200014555 /* kern_start.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 667A2636213F7F7200014555 /* kern_start.cpp */; };
+		667A2639213F806100014555 /* plugin_start.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 667A2638213F806100014555 /* plugin_start.cpp */; };
+		667A263C213F807A00014555 /* kern_tbe.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 667A263A213F807A00014555 /* kern_tbe.cpp */; };
+		667A263D213F807A00014555 /* kern_tbe.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 667A263B213F807A00014555 /* kern_tbe.hpp */; };
+		667A263F213F8ACF00014555 /* libkmod.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 667A263E213F8ACF00014555 /* libkmod.a */; };
+		667A2642214C612300014555 /* IOThunderboltICM.h in Headers */ = {isa = PBXBuildFile; fileRef = 667A2640214C612300014555 /* IOThunderboltICM.h */; };
+		667A2643214C612300014555 /* IOThunderboltICM.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 667A2641214C612300014555 /* IOThunderboltICM.cpp */; };
+		667A2649214DD35C00014555 /* IOThunderboltTransmitCommand.h in Headers */ = {isa = PBXBuildFile; fileRef = 667A2644214DD35C00014555 /* IOThunderboltTransmitCommand.h */; };
+		667A264A214DD35C00014555 /* IOThunderboltConfigICMCommand.h in Headers */ = {isa = PBXBuildFile; fileRef = 667A2645214DD35C00014555 /* IOThunderboltConfigICMCommand.h */; };
+		667A264B214DD35C00014555 /* IOThunderboltConfigICMCommand.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 667A2646214DD35C00014555 /* IOThunderboltConfigICMCommand.cpp */; };
+		667A264C214DD35C00014555 /* IOThunderboltReceiveCommand.h in Headers */ = {isa = PBXBuildFile; fileRef = 667A2647214DD35C00014555 /* IOThunderboltReceiveCommand.h */; };
+		667A264D214DD35C00014555 /* IOThunderboltConfigCommand.h in Headers */ = {isa = PBXBuildFile; fileRef = 667A2648214DD35C00014555 /* IOThunderboltConfigCommand.h */; };
+		667A264F214DD43C00014555 /* IOThunderboltCommand.h in Headers */ = {isa = PBXBuildFile; fileRef = 667A264E214DD43C00014555 /* IOThunderboltCommand.h */; };
+		66AA13DD2151A2E900CD55BF /* IOThunderboltConfigReadCommand.h in Headers */ = {isa = PBXBuildFile; fileRef = 66AA13DC2151A2E900CD55BF /* IOThunderboltConfigReadCommand.h */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		667A262B213F7EDB00014555 /* ThunderboltEnabler.kext */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ThunderboltEnabler.kext; sourceTree = BUILT_PRODUCTS_DIR; };
+		667A2630213F7EDB00014555 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		667A2636213F7F7200014555 /* kern_start.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = kern_start.cpp; sourceTree = "<group>"; };
+		667A2638213F806100014555 /* plugin_start.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = plugin_start.cpp; path = ../../Lilu/build/Debug/Lilu.kext/Contents/Resources/Library/plugin_start.cpp; sourceTree = "<group>"; };
+		667A263A213F807A00014555 /* kern_tbe.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = kern_tbe.cpp; sourceTree = "<group>"; };
+		667A263B213F807A00014555 /* kern_tbe.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = kern_tbe.hpp; sourceTree = "<group>"; };
+		667A263E213F8ACF00014555 /* libkmod.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libkmod.a; path = ../../Lilu/build/Debug/Lilu.kext/Contents/Resources/Library/libkmod.a; sourceTree = "<group>"; };
+		667A2640214C612300014555 /* IOThunderboltICM.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltICM.h; sourceTree = "<group>"; };
+		667A2641214C612300014555 /* IOThunderboltICM.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = IOThunderboltICM.cpp; sourceTree = "<group>"; };
+		667A2644214DD35C00014555 /* IOThunderboltTransmitCommand.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltTransmitCommand.h; sourceTree = "<group>"; };
+		667A2645214DD35C00014555 /* IOThunderboltConfigICMCommand.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltConfigICMCommand.h; sourceTree = "<group>"; };
+		667A2646214DD35C00014555 /* IOThunderboltConfigICMCommand.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = IOThunderboltConfigICMCommand.cpp; sourceTree = "<group>"; };
+		667A2647214DD35C00014555 /* IOThunderboltReceiveCommand.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltReceiveCommand.h; sourceTree = "<group>"; };
+		667A2648214DD35C00014555 /* IOThunderboltConfigCommand.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltConfigCommand.h; sourceTree = "<group>"; };
+		667A264E214DD43C00014555 /* IOThunderboltCommand.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltCommand.h; sourceTree = "<group>"; };
+		66AA13DC2151A2E900CD55BF /* IOThunderboltConfigReadCommand.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltConfigReadCommand.h; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		667A2627213F7EDB00014555 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				667A263F213F8ACF00014555 /* libkmod.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		667A2621213F7EDB00014555 = {
+			isa = PBXGroup;
+			children = (
+				667A262D213F7EDB00014555 /* ThunderboltEnabler */,
+				667A262C213F7EDB00014555 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		667A262C213F7EDB00014555 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				667A262B213F7EDB00014555 /* ThunderboltEnabler.kext */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		667A262D213F7EDB00014555 /* ThunderboltEnabler */ = {
+			isa = PBXGroup;
+			children = (
+				66AA13DC2151A2E900CD55BF /* IOThunderboltConfigReadCommand.h */,
+				667A264E214DD43C00014555 /* IOThunderboltCommand.h */,
+				667A2648214DD35C00014555 /* IOThunderboltConfigCommand.h */,
+				667A2646214DD35C00014555 /* IOThunderboltConfigICMCommand.cpp */,
+				667A2645214DD35C00014555 /* IOThunderboltConfigICMCommand.h */,
+				667A2647214DD35C00014555 /* IOThunderboltReceiveCommand.h */,
+				667A2644214DD35C00014555 /* IOThunderboltTransmitCommand.h */,
+				667A2641214C612300014555 /* IOThunderboltICM.cpp */,
+				667A2640214C612300014555 /* IOThunderboltICM.h */,
+				667A263E213F8ACF00014555 /* libkmod.a */,
+				667A2638213F806100014555 /* plugin_start.cpp */,
+				667A2630213F7EDB00014555 /* Info.plist */,
+				667A2636213F7F7200014555 /* kern_start.cpp */,
+				667A263A213F807A00014555 /* kern_tbe.cpp */,
+				667A263B213F807A00014555 /* kern_tbe.hpp */,
+			);
+			path = ThunderboltEnabler;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		667A2628213F7EDB00014555 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				667A264D214DD35C00014555 /* IOThunderboltConfigCommand.h in Headers */,
+				667A264F214DD43C00014555 /* IOThunderboltCommand.h in Headers */,
+				667A2642214C612300014555 /* IOThunderboltICM.h in Headers */,
+				667A2649214DD35C00014555 /* IOThunderboltTransmitCommand.h in Headers */,
+				66AA13DD2151A2E900CD55BF /* IOThunderboltConfigReadCommand.h in Headers */,
+				667A264A214DD35C00014555 /* IOThunderboltConfigICMCommand.h in Headers */,
+				667A264C214DD35C00014555 /* IOThunderboltReceiveCommand.h in Headers */,
+				667A263D213F807A00014555 /* kern_tbe.hpp in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		667A262A213F7EDB00014555 /* ThunderboltEnabler */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 667A2633213F7EDB00014555 /* Build configuration list for PBXNativeTarget "ThunderboltEnabler" */;
+			buildPhases = (
+				667A2626213F7EDB00014555 /* Sources */,
+				667A2627213F7EDB00014555 /* Frameworks */,
+				667A2628213F7EDB00014555 /* Headers */,
+				667A2629213F7EDB00014555 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ThunderboltEnabler;
+			productName = ThunderboltEnabler;
+			productReference = 667A262B213F7EDB00014555 /* ThunderboltEnabler.kext */;
+			productType = "com.apple.product-type.kernel-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		667A2622213F7EDB00014555 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0940;
+				ORGANIZATIONNAME = Fraxul;
+				TargetAttributes = {
+					667A262A213F7EDB00014555 = {
+						CreatedOnToolsVersion = 9.4.1;
+					};
+				};
+			};
+			buildConfigurationList = 667A2625213F7EDB00014555 /* Build configuration list for PBXProject "ThunderboltEnabler" */;
+			compatibilityVersion = "Xcode 9.3";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = 667A2621213F7EDB00014555;
+			productRefGroup = 667A262C213F7EDB00014555 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				667A262A213F7EDB00014555 /* ThunderboltEnabler */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		667A2629213F7EDB00014555 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		667A2626213F7EDB00014555 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				667A263C213F807A00014555 /* kern_tbe.cpp in Sources */,
+				667A2643214C612300014555 /* IOThunderboltICM.cpp in Sources */,
+				667A2637213F7F7200014555 /* kern_start.cpp in Sources */,
+				667A2639213F806100014555 /* plugin_start.cpp in Sources */,
+				667A264B214DD35C00014555 /* IOThunderboltConfigICMCommand.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		667A2631213F7EDB00014555 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"PRODUCT_NAME=$(PRODUCT_NAME)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Lilu.kext/Contents/Resources";
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = ThunderboltEnabler;
+				SDKROOT = macosx;
+				VALID_ARCHS = x86_64;
+			};
+			name = Debug;
+		};
+		667A2632213F7EDB00014555 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = "PRODUCT_NAME=$(PRODUCT_NAME)";
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Lilu.kext/Contents/Resources";
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				PRODUCT_NAME = ThunderboltEnabler;
+				SDKROOT = macosx;
+				VALID_ARCHS = x86_64;
+			};
+			name = Release;
+		};
+		667A2634213F7EDB00014555 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "";
+				INFOPLIST_FILE = ThunderboltEnabler/Info.plist;
+				MODULE_NAME = com.fraxul.ThunderboltEnabler;
+				MODULE_START = ThunderboltEnabler_kern_start;
+				MODULE_STOP = ThunderboltEnabler_kern_stop;
+				MODULE_VERSION = 1.0.0d1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fraxul.ThunderboltEnabler;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				WRAPPER_EXTENSION = kext;
+			};
+			name = Debug;
+		};
+		667A2635213F7EDB00014555 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "";
+				INFOPLIST_FILE = ThunderboltEnabler/Info.plist;
+				MODULE_NAME = com.fraxul.ThunderboltEnabler;
+				MODULE_START = ThunderboltEnabler_kern_start;
+				MODULE_STOP = ThunderboltEnabler_kern_stop;
+				MODULE_VERSION = 1.0.0d1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fraxul.ThunderboltEnabler;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				WRAPPER_EXTENSION = kext;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		667A2625213F7EDB00014555 /* Build configuration list for PBXProject "ThunderboltEnabler" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				667A2631213F7EDB00014555 /* Debug */,
+				667A2632213F7EDB00014555 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		667A2633213F7EDB00014555 /* Build configuration list for PBXNativeTarget "ThunderboltEnabler" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				667A2634213F7EDB00014555 /* Debug */,
+				667A2635213F7EDB00014555 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 667A2622213F7EDB00014555 /* Project object */;
+}
