@@ -1,7 +1,10 @@
 #pragma once
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winconsistent-missing-override"
 #include <Headers/kern_iokit.hpp>
 #include <Headers/kern_devinfo.hpp>
 #include <IOKit/pci/IOPCIDevice.h>
+#pragma clang diagnostic pop
 
 class IOThunderboltController;
 class IOThunderboltConnectionManager;
@@ -36,28 +39,12 @@ private:
   mach_vm_address_t halGetParentBridgeDevice_addr { 0 };
   mach_vm_address_t halGetRootBridgeDevice_addr { 0 };
   mach_vm_address_t halGetRootPortDevice_addr { 0 };
-  mach_vm_address_t halIsConfigAccessEnabled_addr { 0 };
-  mach_vm_address_t halEnableConfigAccess_addr { 0 };
 
   int halRegisterRead32(void* tbHAL, uint32_t address) { return reinterpret_cast<int(*)(void*, uint32_t)>(halRegisterRead32_addr)(tbHAL, address); }
   void halRegisterWrite32(void* tbHAL, uint32_t address, uint32_t value) { reinterpret_cast<void(*)(void*, uint32_t, uint32_t)>(halRegisterWrite32_addr)(tbHAL, address, value); }
   IOPCIDevice* halGetParentBridgeDevice(void* tbHAL) { return reinterpret_cast<IOPCIDevice*(*)(void*)>(halGetParentBridgeDevice_addr)(tbHAL); }
   IOPCIDevice* halGetRootBridgeDevice(void* tbHAL) { return reinterpret_cast<IOPCIDevice*(*)(void*)>(halGetRootBridgeDevice_addr)(tbHAL); }
   IOPCIDevice* halGetRootPortDevice(void* tbHAL) { return reinterpret_cast<IOPCIDevice*(*)(void*)>(halGetRootPortDevice_addr)(tbHAL); }
-  bool halIsConfigAccessEnabled(void* tbHAL) { return reinterpret_cast<bool(*)(void*)>(halIsConfigAccessEnabled_addr)(tbHAL); }
-  void halEnableConfigAccess(void* tbHAL, bool enabled) { reinterpret_cast<void(*)(void*, bool)>(halEnableConfigAccess_addr)(tbHAL, enabled); }
 
   bool nhi_mailbox_cmd(void* thunderboltHAL, uint32_t cmd, uint32_t data);
-  
-  static bool wrapIOThunderboltPortMatchPropertyTable(void* that, OSDictionary* table, SInt32* score);
-  static bool wrapIOThunderboltSwitchMatchPropertyTable(void* that, OSDictionary* table, SInt32* score);
-  static size_t wrapIOThunderboltPortInitWithController(void* that, void*);
-  static size_t wrapIOThunderboltEEPROMInitWithController(void* that, void* arg0);
-  static size_t wrapIOThunderboltControllerStart(void* that, void* arg0);
-  
-  mach_vm_address_t origIOThunderboltPortMatchPropertyTable { 0 };
-  mach_vm_address_t origIOThunderboltSwitchMatchPropertyTable { 0 };
-  mach_vm_address_t origIOThunderboltPortInitWithController { 0 };
-  mach_vm_address_t origIOThunderboltEEPROMInitWithController { 0 };
-  mach_vm_address_t origIOThunderboltControllerStart { 0 };
 };

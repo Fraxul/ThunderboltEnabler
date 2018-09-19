@@ -5,8 +5,7 @@
 #include <IOKit/IOLib.h>
 #include <IOKit/IOBufferMemoryDescriptor.h>
 
-#define TB_CFG_PKG_ICM_CMD 11
-#define TB_CFG_PKG_ICM_RESP 12
+#include "tb_constants.h"
 
 // Defined in IOThunderboltFamily
 extern "C" {
@@ -134,7 +133,7 @@ int IOThunderboltConfigICMCommand::processResponse(IOThunderboltReceiveCommand* 
   uint32_t crc_computed = IOThunderboltCRC32(rxMem, (rxWords - 1) * 4);
   if (crc_wire != crc_computed) {
     kprintf("IOThunderboltConfigICMCommand::processResponse(): bad CRC: wire is %08x, computed is %08x\n", crc_wire, crc_computed);
-    //return 3;
+    // TODO CRC computation is not working right, so we don't bail here yet
   }
 
   m_responseDataSize = responseLength - 4;

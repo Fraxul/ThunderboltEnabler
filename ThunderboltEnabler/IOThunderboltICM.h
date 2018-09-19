@@ -1,57 +1,41 @@
-#include <libkern/c++/OSObject.h>
+#pragma once
+#include "IOThunderboltConnectionManager.h"
 
-class IOThunderboltController;
-class IOThunderboltSwitch;
-class IOThunderboltPort;
-
-
-class IOThunderboltICM : public OSObject {
-public:
-  typedef void* Callback;
-  // Don't touch the ordering of these or insert any functions here -- the vtable needs to
-  // match the layout of IOThunderboltConnectionManager.
+class IOThunderboltICM : public IOThunderboltConnectionManager {
   OSDeclareDefaultStructors(IOThunderboltICM);
+public:
   virtual void free() override;
 
-  virtual void createResources();
-  virtual void destroyResources();
-  virtual void configurationThreadDone();
-  virtual void configurationThreadMain();
-  virtual void resetRootSwitch();
-  virtual void scanRootSwitch(unsigned int);
-  virtual void scan(void *);
-  virtual void earlyWakeScan(void *);
-  virtual void wakeScan(void *);
-  virtual void rescan(void *);
-  virtual bool initWithController(IOThunderboltController *);
-  virtual IOThunderboltSwitch* getRootSwitch();
-  virtual IOThunderboltPort* getNHIPort();
-  virtual bool isConfigurationThreadRunning();
-  virtual void startConfigurationThread(IOThunderboltICM::Callback);
-  virtual void startScan();
-  virtual void startEarlyWakeScan();
-  virtual void startWakeScan();
-  virtual void lateSleep();
-  virtual void lateSleepPhase2();
-  virtual void startRescan();
-  virtual void appendSwitchToScanQueue(IOThunderboltSwitch *);
-  virtual void resetAll();
-  virtual void getDevicesConnectedState(bool *);
-  virtual void createRootSwitch();
-  virtual void terminateAndRegister();
-  virtual void disableConfigurationThread();
-  virtual void enableConfigurationThread();
-
-  virtual void _RESERVEDIOThunderboltConnectionManager0(void);
-  virtual void _RESERVEDIOThunderboltConnectionManager1(void);
-  virtual void _RESERVEDIOThunderboltConnectionManager2(void);
-  virtual void _RESERVEDIOThunderboltConnectionManager3(void);
-  virtual void _RESERVEDIOThunderboltConnectionManager4(void);
-  virtual void _RESERVEDIOThunderboltConnectionManager5(void);
-  virtual void _RESERVEDIOThunderboltConnectionManager6(void);
-  virtual void _RESERVEDIOThunderboltConnectionManager7(void);
-  // Adding functions below here should be safe.
-
+/*
+  virtual void createResources() override;
+  virtual void destroyResources() override;
+  virtual void configurationThreadDone() override;
+  virtual void configurationThreadMain() override;
+  virtual void resetRootSwitch() override;
+  virtual void scanRootSwitch(unsigned int) override;
+  virtual void scan(void *) override;
+  virtual void earlyWakeScan(void *) override;
+  virtual void wakeScan(void *) override;
+  virtual void rescan(void *) override;
+  virtual bool initWithController(IOThunderboltController *) override;
+  virtual IOThunderboltSwitch* getRootSwitch() override;
+  virtual IOThunderboltPort* getNHIPort() override;
+  virtual bool isConfigurationThreadRunning() override;
+  virtual void startConfigurationThread(IOThunderboltConnectionManager::Callback) override;
+  virtual void startScan() override;
+  virtual void startEarlyWakeScan() override;
+  virtual void startWakeScan() override;
+  virtual void lateSleep() override;
+  virtual void lateSleepPhase2() override;
+  virtual void startRescan() override;
+  virtual void appendSwitchToScanQueue(IOThunderboltSwitch *) override;
+  virtual void resetAll() override;
+  virtual void getDevicesConnectedState(bool *) override;
+  virtual void createRootSwitch() override;
+  virtual void terminateAndRegister() override;
+  virtual void disableConfigurationThread() override;
+  virtual void enableConfigurationThread() override;
+*/
 protected:
   IOThunderboltController* m_controller;
 

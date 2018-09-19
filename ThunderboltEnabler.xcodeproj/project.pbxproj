@@ -21,6 +21,13 @@
 		667A264D214DD35C00014555 /* IOThunderboltConfigCommand.h in Headers */ = {isa = PBXBuildFile; fileRef = 667A2648214DD35C00014555 /* IOThunderboltConfigCommand.h */; };
 		667A264F214DD43C00014555 /* IOThunderboltCommand.h in Headers */ = {isa = PBXBuildFile; fileRef = 667A264E214DD43C00014555 /* IOThunderboltCommand.h */; };
 		66AA13DD2151A2E900CD55BF /* IOThunderboltConfigReadCommand.h in Headers */ = {isa = PBXBuildFile; fileRef = 66AA13DC2151A2E900CD55BF /* IOThunderboltConfigReadCommand.h */; };
+		66AA13E42151D53500CD55BF /* IOThunderboltControlPathListener.h in Headers */ = {isa = PBXBuildFile; fileRef = 66AA13DE2151D53500CD55BF /* IOThunderboltControlPathListener.h */; };
+		66AA13E52151D53500CD55BF /* IOThunderboltControlPath.h in Headers */ = {isa = PBXBuildFile; fileRef = 66AA13DF2151D53500CD55BF /* IOThunderboltControlPath.h */; };
+		66AA13E62151D53500CD55BF /* IOThunderboltICMListener.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 66AA13E02151D53500CD55BF /* IOThunderboltICMListener.cpp */; };
+		66AA13E72151D53500CD55BF /* IOThunderboltICMListener.h in Headers */ = {isa = PBXBuildFile; fileRef = 66AA13E12151D53500CD55BF /* IOThunderboltICMListener.h */; };
+		66AA13E82151D53500CD55BF /* tb_constants.h in Headers */ = {isa = PBXBuildFile; fileRef = 66AA13E22151D53500CD55BF /* tb_constants.h */; };
+		66AA13E92151D53500CD55BF /* IOThunderboltController.h in Headers */ = {isa = PBXBuildFile; fileRef = 66AA13E32151D53500CD55BF /* IOThunderboltController.h */; };
+		66AA13EB2151D75000CD55BF /* IOThunderboltConnectionManager.h in Headers */ = {isa = PBXBuildFile; fileRef = 66AA13EA2151D75000CD55BF /* IOThunderboltConnectionManager.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +47,13 @@
 		667A2648214DD35C00014555 /* IOThunderboltConfigCommand.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltConfigCommand.h; sourceTree = "<group>"; };
 		667A264E214DD43C00014555 /* IOThunderboltCommand.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltCommand.h; sourceTree = "<group>"; };
 		66AA13DC2151A2E900CD55BF /* IOThunderboltConfigReadCommand.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltConfigReadCommand.h; sourceTree = "<group>"; };
+		66AA13DE2151D53500CD55BF /* IOThunderboltControlPathListener.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltControlPathListener.h; sourceTree = "<group>"; };
+		66AA13DF2151D53500CD55BF /* IOThunderboltControlPath.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltControlPath.h; sourceTree = "<group>"; };
+		66AA13E02151D53500CD55BF /* IOThunderboltICMListener.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = IOThunderboltICMListener.cpp; sourceTree = "<group>"; };
+		66AA13E12151D53500CD55BF /* IOThunderboltICMListener.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltICMListener.h; sourceTree = "<group>"; };
+		66AA13E22151D53500CD55BF /* tb_constants.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tb_constants.h; sourceTree = "<group>"; };
+		66AA13E32151D53500CD55BF /* IOThunderboltController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltController.h; sourceTree = "<group>"; };
+		66AA13EA2151D75000CD55BF /* IOThunderboltConnectionManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltConnectionManager.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -73,6 +87,13 @@
 		667A262D213F7EDB00014555 /* ThunderboltEnabler */ = {
 			isa = PBXGroup;
 			children = (
+				66AA13EA2151D75000CD55BF /* IOThunderboltConnectionManager.h */,
+				66AA13E32151D53500CD55BF /* IOThunderboltController.h */,
+				66AA13DF2151D53500CD55BF /* IOThunderboltControlPath.h */,
+				66AA13DE2151D53500CD55BF /* IOThunderboltControlPathListener.h */,
+				66AA13E02151D53500CD55BF /* IOThunderboltICMListener.cpp */,
+				66AA13E12151D53500CD55BF /* IOThunderboltICMListener.h */,
+				66AA13E22151D53500CD55BF /* tb_constants.h */,
 				66AA13DC2151A2E900CD55BF /* IOThunderboltConfigReadCommand.h */,
 				667A264E214DD43C00014555 /* IOThunderboltCommand.h */,
 				667A2648214DD35C00014555 /* IOThunderboltConfigCommand.h */,
@@ -99,13 +120,19 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				66AA13EB2151D75000CD55BF /* IOThunderboltConnectionManager.h in Headers */,
 				667A264D214DD35C00014555 /* IOThunderboltConfigCommand.h in Headers */,
 				667A264F214DD43C00014555 /* IOThunderboltCommand.h in Headers */,
 				667A2642214C612300014555 /* IOThunderboltICM.h in Headers */,
+				66AA13E52151D53500CD55BF /* IOThunderboltControlPath.h in Headers */,
 				667A2649214DD35C00014555 /* IOThunderboltTransmitCommand.h in Headers */,
 				66AA13DD2151A2E900CD55BF /* IOThunderboltConfigReadCommand.h in Headers */,
+				66AA13E82151D53500CD55BF /* tb_constants.h in Headers */,
+				66AA13E92151D53500CD55BF /* IOThunderboltController.h in Headers */,
+				66AA13E72151D53500CD55BF /* IOThunderboltICMListener.h in Headers */,
 				667A264A214DD35C00014555 /* IOThunderboltConfigICMCommand.h in Headers */,
 				667A264C214DD35C00014555 /* IOThunderboltReceiveCommand.h in Headers */,
+				66AA13E42151D53500CD55BF /* IOThunderboltControlPathListener.h in Headers */,
 				667A263D213F807A00014555 /* kern_tbe.hpp in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -180,6 +207,7 @@
 				667A263C213F807A00014555 /* kern_tbe.cpp in Sources */,
 				667A2643214C612300014555 /* IOThunderboltICM.cpp in Sources */,
 				667A2637213F7F7200014555 /* kern_start.cpp in Sources */,
+				66AA13E62151D53500CD55BF /* IOThunderboltICMListener.cpp in Sources */,
 				667A2639213F806100014555 /* plugin_start.cpp in Sources */,
 				667A264B214DD35C00014555 /* IOThunderboltConfigICMCommand.cpp in Sources */,
 			);

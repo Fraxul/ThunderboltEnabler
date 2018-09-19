@@ -1,11 +1,12 @@
 #include "IOThunderboltICM.h"
 
-OSDefineMetaClassAndStructors(IOThunderboltICM, OSObject);
+OSDefineMetaClassAndStructors(IOThunderboltICM, IOThunderboltConnectionManager);
 
 void IOThunderboltICM::free() {
-
+  IOThunderboltConnectionManager::free();
 }
 
+/*
 void IOThunderboltICM::createResources(void) {
 }
 
@@ -98,30 +99,6 @@ void IOThunderboltICM::disableConfigurationThread(void) {
 
 void IOThunderboltICM::enableConfigurationThread(void) {
 }
-
-
-void IOThunderboltICM::_RESERVEDIOThunderboltConnectionManager0(void) {
-}
-
-void IOThunderboltICM::_RESERVEDIOThunderboltConnectionManager1(void) {
-}
-
-void IOThunderboltICM::_RESERVEDIOThunderboltConnectionManager2(void) {
-}
-
-void IOThunderboltICM::_RESERVEDIOThunderboltConnectionManager3(void) {
-}
-
-void IOThunderboltICM::_RESERVEDIOThunderboltConnectionManager4(void) {
-}
-
-void IOThunderboltICM::_RESERVEDIOThunderboltConnectionManager5(void) {
-}
-
-void IOThunderboltICM::_RESERVEDIOThunderboltConnectionManager6(void) {
-}
-
-void IOThunderboltICM::_RESERVEDIOThunderboltConnectionManager7(void) {
-}
+*/
 
 

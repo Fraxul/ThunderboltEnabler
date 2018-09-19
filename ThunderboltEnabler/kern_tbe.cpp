@@ -5,34 +5,27 @@
 #include <Headers/kern_iokit.hpp>
 #include "IOThunderboltConfigICMCommand.h"
 #include "IOThunderboltConfigReadCommand.h"
+#include "IOThunderboltConnectionManager.h"
+#include "IOThunderboltController.h"
+#include "IOThunderboltControlPath.h"
+#include "IOThunderboltICMListener.h"
 #include "IOThunderboltReceiveCommand.h"
 #include "IOThunderboltTransmitCommand.h"
 #include <IOKit/IOBufferMemoryDescriptor.h>
 
-#define BITS_PER_LONG 64
-#define BIT(nr)     (1UL << (nr))
-#define GENMASK(h, l) \
-  (((~0UL) - (1UL << (l)) + 1) & (~0UL >> (BITS_PER_LONG - 1 - (h))))
+#include "tb_constants.h"
 
+#define LOG_REGISTER_RW 0
+#define LOG_PACKET_BYTES 0
 
 TBE* TBE::callbackInst;
-
-static void maybeWaitForDebugger() {
-  static bool didWaitForDebugger = false;
-  if (!didWaitForDebugger) {
-    didWaitForDebugger = true;
-    Debugger("waitForDebugger called");
-  }
-}
 
 static const char* pathAppleThunderboltNHI[] {
   "/System/Library/Extensions/AppleThunderboltNHI.kext/Contents/MacOS/AppleThunderboltNHI",
   "/Users/dweatherford/thunderbolt-kexts/AppleThunderboltNHI.kext/Contents/MacOS/AppleThunderboltNHI"
 };
-//static const char* pathIOThunderboltFamily[] { "/System/Library/Extensions/IOThunderboltFamily.kext/Contents/MacOS/IOThunderboltFamily" };
 static KernelPatcher::KextInfo kexts[] {
   {"com.apple.driver.AppleThunderboltNHI", pathAppleThunderboltNHI, arrsize(pathAppleThunderboltNHI), {true}, {}, KernelPatcher::KextInfo::Unloaded},
-  //{"com.apple.iokit.IOThunderboltFamily", pathIOThunderboltFamily, arrsize(pathIOThunderboltFamily), {true}, {}, KernelPatcher::KextInfo::Unloaded},
 };
 
 
@@ -54,6 +47,7 @@ void TBE::onPatcherLoaded(KernelPatcher& patcher) {
     patcher.clearError();
   }
 
+#if LOG_PACKET_BYTES
   origRxCommandCallback = patcher.routeFunction(reinterpret_cast<mach_vm_address_t>(&_ZN24IOThunderboltControlPath17rxCommandCallbackEPviP27IOThunderboltReceiveCommand), reinterpret_cast<mach_vm_address_t>(&wrapRxCommandCallback), true, true);
   if (origRxCommandCallback) {
     kprintf("ThunderboltEnabler: Wrapped IOThunderboltControlPath::rxCommandCallback\n");
@@ -61,6 +55,7 @@ void TBE::onPatcherLoaded(KernelPatcher& patcher) {
     kprintf("ThunderboltEnabler: Failed to wrap IOThunderboltControlPath::rxCommandCallback: %d\n", patcher.getError());
     patcher.clearError();
   }
+#endif
 
 }
 
@@ -89,47 +84,41 @@ void TBE::patchKext(KernelPatcher &patcher, size_t index, mach_vm_address_t addr
     // AppleThunderboltNHI
     kprintf("TBE::patchAppleThunderboltNHI: Processing kext %s\n", kexts[0].id);
 
-    KernelPatcher::RouteRequest requests[] {
-      //{"__ZN19AppleThunderboltNHI5startEP9IOService", wrapNHIStart, origNHIStart},
-      {"__ZN26AppleThunderboltGenericHAL14registerRead32Ej", wrapHalRegisterRead32, halRegisterRead32_addr},
-      {"__ZN26AppleThunderboltGenericHAL15registerWrite32Ejj", wrapHalRegisterWrite32, halRegisterWrite32_addr},
+#if LOG_REGISTER_RW
+    {
+      KernelPatcher::RouteRequest requests[] {
+        {"__ZN26AppleThunderboltGenericHAL14registerRead32Ej", wrapHalRegisterRead32, halRegisterRead32_addr},
+        {"__ZN26AppleThunderboltGenericHAL15registerWrite32Ejj", wrapHalRegisterWrite32, halRegisterWrite32_addr},
+      };
+      kprintf("ThunderboltEnabler: TBE::patchKext(): LOG_REGISTER_RW is enabled, applying %zu patches\n", arrsize(requests));;
+      patcher.routeMultiple(index, requests, address, size);
+      patcher.clearError();
+    }
+#endif
 
-      {"__ZN31AppleThunderboltNHITransmitRing18submitCommandToNHIEP28IOThunderboltTransmitCommand", wrapSubmitTxCommandToNHI, origSubmitTxCommandToNHI},
-    };
-    kprintf("ThunderboltEnabler: TBE::patchKext(): applying %zu patches\n", arrsize(requests));;
-
-    patcher.routeMultiple(index, requests, address, size);
-    patcher.clearError();
+#if LOG_PACKET_BYTES
+    {
+      KernelPatcher::RouteRequest requests[] {
+        {"__ZN31AppleThunderboltNHITransmitRing18submitCommandToNHIEP28IOThunderboltTransmitCommand", wrapSubmitTxCommandToNHI, origSubmitTxCommandToNHI},
+      };
+      kprintf("ThunderboltEnabler: TBE::patchKext(): LOG_PACKET_BYTES is enabled, applying %zu patches\n", arrsize(requests));;
+      patcher.routeMultiple(index, requests, address, size);
+      patcher.clearError();
+    }
+#endif
 
     // Solve necessary symbols in AppleThunderboltNHI.kext
     // TODO: just convert the vtables to headers and call these directly
 
-    //halRegisterRead32_addr = patcher.solveSymbol(index, "__ZN26AppleThunderboltGenericHAL14registerRead32Ej", address, size);
-    //halRegisterWrite32_addr = patcher.solveSymbol(index, "__ZN26AppleThunderboltGenericHAL15registerWrite32Ejj", address, size);
+#if !LOG_REGISTER_RW // need to solve these to call them if we didn't wrap them before
+    halRegisterRead32_addr = patcher.solveSymbol(index, "__ZN26AppleThunderboltGenericHAL14registerRead32Ej", address, size);
+    halRegisterWrite32_addr = patcher.solveSymbol(index, "__ZN26AppleThunderboltGenericHAL15registerWrite32Ejj", address, size);
+#endif
     halGetParentBridgeDevice_addr = patcher.solveSymbol(index, "__ZN26AppleThunderboltGenericHAL21getParentBridgeDeviceEv", address, size);
     halGetRootBridgeDevice_addr = patcher.solveSymbol(index, "__ZN26AppleThunderboltGenericHAL19getRootBridgeDeviceEv", address, size);
     halGetRootPortDevice_addr = patcher.solveSymbol(index, "__ZN26AppleThunderboltGenericHAL17getRootPortDeviceEv", address, size);
-    halIsConfigAccessEnabled_addr = patcher.solveSymbol(index, "__ZN26AppleThunderboltGenericHAL21isConfigAccessEnabledEv", address, size);
-    halEnableConfigAccess_addr = patcher.solveSymbol(index, "__ZN26AppleThunderboltGenericHAL18enableConfigAccessEb", address, size);
   }
 
-#if 0
-  if (index == kexts[1].loadIndex) {
-    // IOThunderboltFamily
-    kprintf("TBE::patchIOThunderboltFamily: Processing kext %s\n", kexts[1].id);
-    KernelPatcher::RouteRequest requests[] {
-      {"__ZN23IOThunderboltController5startEP9IOService", wrapIOThunderboltControllerStart, origIOThunderboltControllerStart},
-      {"__ZN19IOThunderboltEEPROM18initWithControllerEP23IOThunderboltController", wrapIOThunderboltEEPROMInitWithController, origIOThunderboltEEPROMInitWithController},
-      {"__ZN17IOThunderboltPort18matchPropertyTableEP12OSDictionary", wrapIOThunderboltPortMatchPropertyTable, origIOThunderboltPortMatchPropertyTable},
-      {"__ZN19IOThunderboltSwitch18matchPropertyTableEP12OSDictionary", wrapIOThunderboltSwitchMatchPropertyTable, origIOThunderboltSwitchMatchPropertyTable},
-      {"__ZN17IOThunderboltPort18initWithControllerEP23IOThunderboltController", wrapIOThunderboltPortInitWithController, origIOThunderboltPortInitWithController},
-    };
-    kprintf("ThunderboltEnabler: TBE::patchKext(): applying %zu patches\n", arrsize(requests));;
-
-    patcher.routeMultiple(index, requests, address, size);
-    patcher.clearError();
-  }
-#endif
 }
 
 
@@ -180,16 +169,17 @@ bool TBE::nhi_mailbox_cmd(void* thunderboltHAL, uint32_t cmd, uint32_t data) {
 
 //// ---------------------------------------------------------------------------------------------------------------------------------- ////
 bool pcie2cio_write(IOPCIDevice* pciDevice, IOByteCount vendorCapOffset, uint32_t configSpace, uint32_t port, uint32_t index, uint32_t data) {
-  const uint32_t PCIE2CIO_CMD = 0x30;
-  const uint32_t PCIE2CIO_CMD_TIMEOUT = BIT(31);
-  const uint32_t PCIE2CIO_CMD_START = BIT(30);
-  const uint32_t PCIE2CIO_CMD_WRITE = BIT(21);
-  const uint32_t PCIE2CIO_CMD_CS_MASK = GENMASK(20, 19);
-  const uint32_t PCIE2CIO_CMD_CS_SHIFT = 19;
-  const uint32_t PCIE2CIO_CMD_PORT_MASK = GENMASK(18, 13);
-  const uint32_t PCIE2CIO_CMD_PORT_SHIFT = 13;
-  const uint32_t PCIE2CIO_WRDATA = 0x34;
-  const uint32_t PCIE2CIO_RDDATA = 0x38;
+#define PCIE2CIO_CMD  0x30
+#define PCIE2CIO_CMD_TIMEOUT      BIT(31)
+#define PCIE2CIO_CMD_START        BIT(30)
+#define PCIE2CIO_CMD_WRITE        BIT(21)
+#define PCIE2CIO_CMD_CS_MASK      GENMASK(20, 19)
+#define PCIE2CIO_CMD_CS_SHIFT     19
+#define PCIE2CIO_CMD_PORT_MASK    GENMASK(18, 13)
+#define PCIE2CIO_CMD_PORT_SHIFT   13
+
+#define PCIE2CIO_WRDATA           0x34
+#define PCIE2CIO_RDDATA           0x38
 
   pciDevice->extendedConfigWrite32(vendorCapOffset + PCIE2CIO_WRDATA, data);
 
@@ -271,28 +261,6 @@ size_t pci_find_ext_capability(IOPCIDevice* pci, uint32_t capID) {
 
 //// ---------------------------------------------------------------------------------------------------------------------------------- ////
 
-
-enum icm_pkg_code {
-  ICM_GET_TOPOLOGY = 0x1,
-  ICM_DRIVER_READY = 0x3,
-  ICM_APPROVE_DEVICE = 0x4,
-  ICM_CHALLENGE_DEVICE = 0x5,
-  ICM_ADD_DEVICE_KEY = 0x6,
-  ICM_GET_ROUTE = 0xa,
-  ICM_APPROVE_XDOMAIN = 0x10,
-  ICM_DISCONNECT_XDOMAIN = 0x11,
-  ICM_PREBOOT_ACL = 0x18,
-};
-
-struct icm_pkg_header {
-  icm_pkg_header() : code(0), flags(0), packet_id(0), total_packets(0) {}
-
-  uint8_t code;
-  uint8_t flags;
-  uint8_t packet_id;
-  uint8_t total_packets;
-};
-
 struct icm_pkg_driver_ready {
   icm_pkg_driver_ready() {
     hdr.code = ICM_DRIVER_READY;
@@ -309,35 +277,60 @@ struct icm_ar_pkg_driver_ready_response {
 
 //// ---------------------------------------------------------------------------------------------------------------------------------- ////
 
+#define REG_FW_STS  0x39944
+
+#define REG_FW_STS_ICM_EN         BIT(0) 
+#define REG_FW_STS_ICM_EN_INVERT  BIT(1)
+#define REG_FW_STS_ICM_EN_CPU     BIT(2)
+#define REG_FW_STS_CIO_RESET_REQ  BIT(30)
+#define REG_FW_STS_NVM_AUTH_DONE  BIT(31)
+
+#define PCI_EXT_CAP_ID_VNDR  0x0B
+
+
 /*static*/ IOThunderboltConnectionManager* TBE::wrapConnectionManagerWithController(IOThunderboltController* controller) {
   kprintf("ThunderboltEnabler: wrapConnectionManagerWithController()\n");
-
-  const uint32_t REG_FW_STS = 0x39944;
-  const uint32_t REG_FW_STS_ICM_EN = BIT(0); 
-  const uint32_t REG_FW_STS_ICM_EN_INVERT = BIT(1);
-  const uint32_t REG_FW_STS_ICM_EN_CPU = BIT(2);
-  const uint32_t REG_FW_STS_CIO_RESET_REQ = BIT(30);
-  const uint32_t REG_FW_STS_NVM_AUTH_DONE = BIT(31);
-
-  const uint32_t TB_CFG_HOPS = 0;
-  const uint32_t TB_CFG_PORT = 1;
-  const uint32_t TB_CFG_SWITCH = 2;
-  const uint32_t TB_CFG_COUNTERS = 3;
-
-  const uint32_t PCI_EXT_CAP_ID_VNDR = 0x0B;
 
   // IOService -> IOThunderboltNHI -> AppleThunderboltNHI -> AppleThunderboltNHIType{1,2,3}
   void* thunderboltNHI = *reinterpret_cast<void**>((reinterpret_cast<char*>(controller) + 0x88));
   // IOService -> AppleThunderboltGenericHAL -> AppleThunderboltHAL
   void* thunderboltHAL = *reinterpret_cast<void**>((reinterpret_cast<char*>(thunderboltNHI) + 0x90));
 
-/*
-  bool origIsConfigAccessEnabled = callbackInst->halIsConfigAccessEnabled(thunderboltHAL);
-  if (origIsConfigAccessEnabled) {
-    kprintf("ThunderboltEnabler: enabling config access\n");
-    callbackInst->halEnableConfigAccess(thunderboltHAL, false);
+  // parentBridgeDevice: IOService:/AppleACPIPlatformExpert/PCI0@0/AppleACPIPCI/RP13@1D,4/IOPP/PXSX@0/IOPP/pci-bridge@0 pci8086,15da
+  IOPCIDevice* parentBridgeDevice = callbackInst->halGetParentBridgeDevice(thunderboltHAL);
+  kprintf("NHIStart: parentBridgeDevice @ %p\n", parentBridgeDevice);
+  if (parentBridgeDevice) {
+    char pathBuf[1024];
+    int pathLen = 1023;
+    parentBridgeDevice->getPath(pathBuf, &pathLen, gIOServicePlane);
+    pathBuf[pathLen] = '\0';
+    kprintf("NHIStart: parentBridgeDevice path is %s\n", pathBuf);
   }
-*/
+
+
+  // rootBridgeDevice: IOService:/AppleACPIPlatformExpert/PCI0@0/AppleACPIPCI/RP13@1D,4/IOPP/PXSX@0 pci8086,15da
+  IOPCIDevice* rootBridgeDevice = callbackInst->halGetRootBridgeDevice(thunderboltHAL);
+  kprintf("NHIStart: rootBridgeDevice @ %p\n", rootBridgeDevice);
+  if (rootBridgeDevice) {
+    char pathBuf[1024];
+    int pathLen = 1023;
+    rootBridgeDevice->getPath(pathBuf, &pathLen, gIOServicePlane);
+    pathBuf[pathLen] = '\0';
+    kprintf("NHIStart: rootBridgeDevice path is %s\n", pathBuf);
+  }
+
+
+  // rootPortDevice: IOService:/AppleACPIPlatformExpert/PCI0@0/AppleACPIPCI/RP13@1D,4 pci8086,a334
+  IOPCIDevice* rootPortDevice = callbackInst->halGetRootPortDevice(thunderboltHAL);
+  kprintf("NHIStart: rootPortDevice @ %p\n", rootPortDevice);
+  if (rootPortDevice) {
+    char pathBuf[1024];
+    int pathLen = 1023;
+    rootPortDevice->getPath(pathBuf, &pathLen, gIOServicePlane);
+    pathBuf[pathLen] = '\0';
+    kprintf("NHIStart: rootPortDevice path is %s\n", pathBuf);
+  }
+
 
   int fw_status = callbackInst->halRegisterRead32(thunderboltHAL, REG_FW_STS);
   kprintf("ThunderboltEnabler: REG_FW_STS = 0x%x\n", fw_status);
@@ -430,6 +423,16 @@ struct icm_ar_pkg_driver_ready_response {
     OSSafeReleaseNULL(swConfigReadMem);
   }
 
+  // Install the ICM message listener
+  {
+    IOThunderboltICMListener* icmListener = IOThunderboltICMListener::withController(controller);
+    IOReturn res = controller->getControlPath()->addListener(icmListener);
+    if (res != 0) {
+      kprintf("ThunderboltEnabler: ICM listener installation failed: 0x%x\n", res);
+    }
+    OSSafeReleaseNULL(icmListener);
+  }
+
   // Temporary: just return the original connection manager implementation
   return FunctionCast(wrapConnectionManagerWithController, callbackInst->origConnectionManagerWithController)(controller);
 
@@ -438,11 +441,11 @@ struct icm_ar_pkg_driver_ready_response {
 //// ---------------------------------------------------------------------------------------------------------------------------------- ////
 
 /*static*/ int TBE::wrapSubmitTxCommandToNHI(void* that, IOThunderboltTransmitCommand* txCommand) {
-  kprintf("wrapSubmitTxCommandToNHI: sof=0x%x eof=0x%x offset=0x%x size=0x%x\n", txCommand->getSOF(), txCommand->getEOF(), txCommand->getOffset(), txCommand->getLength());
+  kprintf("wrapSubmitTxCommandToNHI: sof=0x%x eof=0x%x offset=0x%llx size=0x%llx\n", txCommand->getSOF(), txCommand->getEOF(), txCommand->getOffset(), txCommand->getLength());
   uint32_t* txMem = reinterpret_cast<uint32_t*>(static_cast<IOBufferMemoryDescriptor*>(txCommand->getMemoryDescriptor())->getBytesNoCopy());
   size_t txWords = txCommand->getLength() / 4;
   for (size_t i = 0; i < txWords; ++i) {
-    kprintf("wrapSubmitTxCommandToNHI:   %03x  %08x\n", i * 4, txMem[i]);
+    kprintf("wrapSubmitTxCommandToNHI:   %03zx  %08x\n", i * 4, txMem[i]);
   }
 
   int res = FunctionCast(wrapSubmitTxCommandToNHI, callbackInst->origSubmitTxCommandToNHI)(that, txCommand);
@@ -457,7 +460,7 @@ struct icm_ar_pkg_driver_ready_response {
     kprintf("rxCommand sof=0x%x eof=0x%x\n", rxCommand->getSOF(), rxCommand->getEOF());
     uint32_t* rxMem = reinterpret_cast<uint32_t*>(static_cast<IOBufferMemoryDescriptor*>(rxCommand->getMemoryDescriptor())->getBytesNoCopy());
     for (size_t i = 0; i < rxWords; ++i) {
-      kprintf("   %03x  %08x\n", i * 4, rxMem[i]);
+      kprintf("   %03zx  %08x\n", i * 4, rxMem[i]);
     }
   }
 
@@ -482,38 +485,6 @@ struct icm_ar_pkg_driver_ready_response {
 
     // ---- This code tries (and fails) to reset the NHI out of ICM mode ----
 
-
-    IOPCIDevice* parentBridgeDevice = callbackInst->halGetParentBridgeDevice(thunderboltHAL);
-    kprintf("NHIStart: parentBridgeDevice @ %p\n", parentBridgeDevice);
-    if (parentBridgeDevice) {
-      char pathBuf[1024];
-      int pathLen = 1023;
-      parentBridgeDevice->getPath(pathBuf, &pathLen, gIOServicePlane);
-      pathBuf[pathLen] = '\0';
-      kprintf("NHIStart: parentBridgeDevice path is %s\n", pathBuf);
-    }
-
-
-    IOPCIDevice* rootBridgeDevice = callbackInst->halGetRootBridgeDevice(thunderboltHAL);
-    kprintf("NHIStart: rootBridgeDevice @ %p\n", rootBridgeDevice);
-    if (rootBridgeDevice) {
-      char pathBuf[1024];
-      int pathLen = 1023;
-      rootBridgeDevice->getPath(pathBuf, &pathLen, gIOServicePlane);
-      pathBuf[pathLen] = '\0';
-      kprintf("NHIStart: rootBridgeDevice path is %s\n", pathBuf);
-    }
-
-
-    IOPCIDevice* rootPortDevice = callbackInst->halGetRootPortDevice(thunderboltHAL);
-    kprintf("NHIStart: rootPortDevice @ %p\n", rootPortDevice);
-    if (rootPortDevice) {
-      char pathBuf[1024];
-      int pathLen = 1023;
-      rootPortDevice->getPath(pathBuf, &pathLen, gIOServicePlane);
-      pathBuf[pathLen] = '\0';
-      kprintf("NHIStart: rootPortDevice path is %s\n", pathBuf);
-    }
 
 
     if (!rootBridgeDevice) {
@@ -594,45 +565,5 @@ struct icm_ar_pkg_driver_ready_response {
   }
 
   callbackInst->halRegisterWrite32(that, address, value);
-}
-
-/*static*/ bool TBE::wrapIOThunderboltPortMatchPropertyTable(void* that, OSDictionary* table, SInt32* score) {
-  kprintf("wrapIOThunderboltPortMatchPropertyTable(%p, %p, %p)\n", that, table, score);
-  maybeWaitForDebugger();
-  bool res = FunctionCast(wrapIOThunderboltPortMatchPropertyTable, callbackInst->origIOThunderboltPortMatchPropertyTable)(that, table, score);
-  kprintf("wrapIOThunderboltPortMatchPropertyTable(): res = %d\n", res);
-  return res;
-
-}
-
-/*static*/ bool TBE::wrapIOThunderboltSwitchMatchPropertyTable(void* that, OSDictionary* table, SInt32* score) {
-  kprintf("wrapIOThunderboltSwitchMatchPropertyTable(%p, %p, %p)\n", that, table, score);
-  maybeWaitForDebugger();
-  bool res = FunctionCast(wrapIOThunderboltSwitchMatchPropertyTable, callbackInst->origIOThunderboltSwitchMatchPropertyTable)(that, table, score);
-  kprintf("wrapIOThunderboltSwitchMatchPropertyTable(): res = %d\n", res);
-  return res;
-}
-
-/*static*/ size_t TBE::wrapIOThunderboltPortInitWithController(void* that, void* arg0) {
-  kprintf("wrapIOThunderboltPortInitWithController(%p, %p)\n", that, arg0);
-  maybeWaitForDebugger();
-  size_t res = FunctionCast(wrapIOThunderboltPortInitWithController, callbackInst->origIOThunderboltPortInitWithController)(that, arg0);
-  kprintf("wrapIOThunderboltPortInitWithController(): res = %zu\n", res);
-  return res;
-}
-
-/*static*/ size_t TBE::wrapIOThunderboltEEPROMInitWithController(void* that, void* arg0) {
-  kprintf("wrapIOThunderboltEEPROMInitWithController(%p, %p)\n", that, arg0);
-  maybeWaitForDebugger();
-  size_t res = FunctionCast(wrapIOThunderboltEEPROMInitWithController, callbackInst->origIOThunderboltEEPROMInitWithController)(that, arg0);
-  kprintf("wrapIOThunderboltEEPROMInitWithController(): res = %zu\n", res);
-  return res;
-}
-
-/*static*/ size_t TBE::wrapIOThunderboltControllerStart(void* that, void* arg0) {
-  kprintf("wrapIOThunderboltControllerStart(%p, %p)\n", that, arg0);
-  size_t res = FunctionCast(wrapIOThunderboltControllerStart, callbackInst->origIOThunderboltControllerStart)(that, arg0);
-  kprintf("wrapIOThunderboltControllerStart(): res = %zu\n", res);
-  return res;
 }
 
