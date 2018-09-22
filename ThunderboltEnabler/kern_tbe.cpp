@@ -24,9 +24,47 @@ static const char* pathAppleThunderboltNHI[] {
   "/System/Library/Extensions/AppleThunderboltNHI.kext/Contents/MacOS/AppleThunderboltNHI",
   "/Users/dweatherford/thunderbolt-kexts/AppleThunderboltNHI.kext/Contents/MacOS/AppleThunderboltNHI"
 };
+
+/*
+static const char* pathAppleThunderboltPCIDownAdapter[] {
+  "/System/Library/Extensions/AppleThunderboltPCIAdapters.kext/Contents/PlugIns/AppleThunderboltPCIDownAdapter.kext/Contents/MacOS/AppleThunderboltPCIDownAdapter",
+};
+  // {"com.apple.driver.AppleThunderboltPCIDownAdapter", pathAppleThunderboltPCIDownAdapter, arrsize(pathAppleThunderboltPCIDownAdapter), {true}, {}, KernelPatcher::KextInfo::Unloaded},
+*/
+
 static KernelPatcher::KextInfo kexts[] {
   {"com.apple.driver.AppleThunderboltNHI", pathAppleThunderboltNHI, arrsize(pathAppleThunderboltNHI), {true}, {}, KernelPatcher::KextInfo::Unloaded},
 };
+
+// Patch SystemUIServer so that the ExpressCard menu extra doesn't load. It incorrectly identifies Thunderbolt devices as ExpressCards.
+// I doubt there's any overlap between machines with ExpressCard slots and machines with Thunderbolt controllers.
+static const char* sysUIServerPath = "/System/Library/CoreServices/SystemUIServer.app/Contents/MacOS/SystemUIServer";
+static const size_t sysUIServerPath_strlen = sizeof("/System/Library/CoreServices/SystemUIServer.app/Contents/MacOS/SystemUIServer") - 1;
+static const char* binaryExpressCardMenuExtra = "/System/Library/CoreServices/Menu Extras/ExpressCard.menu/Contents/MacOS/ExpressCard";
+// This patch changes the jump to skip enumerating the controllers if the count is zero, instead of if it's nonzero.
+// This should ensure that the controller count always remains at zero.
+static const uint8_t expressCardEnumDisablePatchFind[] = {
+  0x8B, 0x05, 0x10, 0x15, 0x00, 0x00,    // mov        eax, dword [gControllerCount]
+  0x85, 0xC0,                            // test       eax, eax
+  0x0F, 0x85, // 0xE2, 0x00, 0x00, 0x00  // jne        loc_24a2 (location offset omitted from match)
+};
+static const uint8_t expressCardEnumDisablePatchRepl[] = {
+  0x8B, 0x05, 0x10, 0x15, 0x00, 0x00,    // mov        eax, dword [gControllerCount]
+  0x85, 0xC0,                            // test       eax, eax
+  0x0F, 0x84, // 0xE2, 0x00, 0x00, 0x00  // je         loc_24a2 (location offset omitted from match)
+};
+static UserPatcher::BinaryModPatch expressCardEnumDisablePatch {
+  CPU_TYPE_X86_64,
+  expressCardEnumDisablePatchFind,
+  expressCardEnumDisablePatchRepl,
+  arrsize(expressCardEnumDisablePatchFind),
+  0, // skip 0 -> replace all occurances
+  1, // count 1
+  UserPatcher::FileSegment::SegmentTextText,
+  1
+};
+static UserPatcher::ProcInfo procSysUIserver { sysUIServerPath, sysUIServerPath_strlen, 1 };
+static UserPatcher::BinaryModInfo expressCardMenuExtraPatch { binaryExpressCardMenuExtra, &expressCardEnumDisablePatch, 1};
 
 
 // Linker stub for function routing
@@ -66,6 +104,8 @@ void TBE::init() {
   
   kprintf("ThunderboltEnabler: TBE::init()\n");
 
+  lilu.onProcLoad(&procSysUIserver, 1, nullptr, nullptr, &expressCardMenuExtraPatch, 1);
+
   lilu.onKextLoadForce(kexts, arrsize(kexts),
     [](void* user, KernelPatcher& patcher, size_t index, mach_vm_address_t address, size_t size) {
       static_cast<TBE*>(user)->patchKext(patcher, index, address, size);
@@ -82,7 +122,7 @@ void TBE::deinit() {
 void TBE::patchKext(KernelPatcher &patcher, size_t index, mach_vm_address_t address, size_t size) {
   if (index == kexts[0].loadIndex) {
     // AppleThunderboltNHI
-    kprintf("TBE::patchAppleThunderboltNHI: Processing kext %s\n", kexts[0].id);
+    kprintf("TBE::patchKext: Processing kext %s\n", kexts[0].id);
 
 #if LOG_REGISTER_RW
     {
