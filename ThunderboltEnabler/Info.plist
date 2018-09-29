@@ -35,6 +35,58 @@
       <key>IOResourceMatch</key>
       <string>IOKit</string>
     </dict>
+    <key>AppleThunderboltPCIDownAdapterStub</key>
+    <dict>
+      <key>Adapter Type</key>
+      <integer>1048833</integer>
+      <key>CFBundleIdentifier</key>
+      <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+      <key>IOClass</key>
+      <string>AppleThunderboltPCIDownAdapterStub</string>
+      <key>IOProbeScore</key>
+      <integer>16384</integer>
+      <key>IOProviderClass</key>
+      <string>IOThunderboltPort</string>
+    </dict>
+    <key>AppleThunderboltPCIUpAdapterStub</key>
+    <dict>
+      <key>Adapter Type</key>
+      <integer>1048834</integer>
+      <key>CFBundleIdentifier</key>
+      <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+      <key>IOClass</key>
+      <string>AppleThunderboltPCIUpAdapterStub</string>
+      <key>IOProbeScore</key>
+      <integer>16384</integer>
+      <key>IOProviderClass</key>
+      <string>IOThunderboltPort</string>
+    </dict>
+    <key>AppleThunderboltDPInAdapterStub</key>
+    <dict>
+      <key>Adapter Type</key>
+      <integer>917761</integer>
+      <key>CFBundleIdentifier</key>
+      <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+      <key>IOClass</key>
+      <string>AppleThunderboltDPInAdapterStub</string>
+      <key>IOProbeScore</key>
+      <integer>16384</integer>
+      <key>IOProviderClass</key>
+      <string>IOThunderboltPort</string>
+    </dict>
+    <key>AppleThunderboltDPOutAdapterStub</key>
+    <dict>
+      <key>Adapter Type</key>
+      <integer>917762</integer>
+      <key>CFBundleIdentifier</key>
+      <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+      <key>IOClass</key>
+      <string>AppleThunderboltDPOutAdapterStub</string>
+      <key>IOProbeScore</key>
+      <integer>16384</integer>
+      <key>IOProviderClass</key>
+      <string>IOThunderboltPort</string>
+    </dict>
   </dict>
   <key>NSHumanReadableCopyright</key>
   <string>Copyright © 2018 Fraxul. All rights reserved.</string>

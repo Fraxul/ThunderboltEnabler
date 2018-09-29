@@ -28,6 +28,7 @@
 		66AA13E82151D53500CD55BF /* tb_constants.h in Headers */ = {isa = PBXBuildFile; fileRef = 66AA13E22151D53500CD55BF /* tb_constants.h */; };
 		66AA13E92151D53500CD55BF /* IOThunderboltController.h in Headers */ = {isa = PBXBuildFile; fileRef = 66AA13E32151D53500CD55BF /* IOThunderboltController.h */; };
 		66AA13EB2151D75000CD55BF /* IOThunderboltConnectionManager.h in Headers */ = {isa = PBXBuildFile; fileRef = 66AA13EA2151D75000CD55BF /* IOThunderboltConnectionManager.h */; };
+		66BE0FCD21600BC50057C6DD /* ThunderboltAdapterStubs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 66BE0FCC21600BC50057C6DD /* ThunderboltAdapterStubs.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +55,7 @@
 		66AA13E22151D53500CD55BF /* tb_constants.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tb_constants.h; sourceTree = "<group>"; };
 		66AA13E32151D53500CD55BF /* IOThunderboltController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltController.h; sourceTree = "<group>"; };
 		66AA13EA2151D75000CD55BF /* IOThunderboltConnectionManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltConnectionManager.h; sourceTree = "<group>"; };
+		66BE0FCC21600BC50057C6DD /* ThunderboltAdapterStubs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ThunderboltAdapterStubs.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -87,6 +89,7 @@
 		667A262D213F7EDB00014555 /* ThunderboltEnabler */ = {
 			isa = PBXGroup;
 			children = (
+				66BE0FCC21600BC50057C6DD /* ThunderboltAdapterStubs.cpp */,
 				66AA13EA2151D75000CD55BF /* IOThunderboltConnectionManager.h */,
 				66AA13E32151D53500CD55BF /* IOThunderboltController.h */,
 				66AA13DF2151D53500CD55BF /* IOThunderboltControlPath.h */,
@@ -204,6 +207,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				66BE0FCD21600BC50057C6DD /* ThunderboltAdapterStubs.cpp in Sources */,
 				667A263C213F807A00014555 /* kern_tbe.cpp in Sources */,
 				667A2643214C612300014555 /* IOThunderboltICM.cpp in Sources */,
 				667A2637213F7F7200014555 /* kern_start.cpp in Sources */,
