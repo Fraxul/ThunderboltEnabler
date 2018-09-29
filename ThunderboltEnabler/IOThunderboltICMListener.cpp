@@ -40,6 +40,9 @@ void IOThunderboltICMListener::processResponse(IOThunderboltReceiveCommand* rxCo
 
   size_t rxWords = rxCommand->getReceivedLength() / 4;
   kprintf("rxCommand sof=0x%x eof=0x%x\n", rxCommand->getSOF(), rxCommand->getEOF());
+  if (rxCommand->getEOF() != TB_CFG_PKG_ICM_EVENT)
+    return; // not relevant
+
   uint32_t* rxMemRaw = reinterpret_cast<uint32_t*>(static_cast<IOBufferMemoryDescriptor*>(rxCommand->getMemoryDescriptor())->getBytesNoCopy());
   for (size_t i = 0; i < rxWords; ++i) {
     kprintf("   %03x  %08x\n", i * 4, rxMemRaw[i]);
@@ -85,8 +88,15 @@ void IOThunderboltICMListener::processResponse(IOThunderboltReceiveCommand* rxCo
 void IOThunderboltICMListener::handleDeviceConnected(icm_fr_event_device_connected* evt) {
   uuid_string_t uuidstr;
   uuid_unparse(evt->endpoint_uuid, uuidstr);
-  kprintf("handleDeviceConnected(icm_fr): uuid=%s connection_key=%x connection_id=%x link_info=%x unk1=%x\n  endpoint_name=%s\n",
-    uuidstr, evt->connection_key & 0xff, evt->connection_id & 0xff, evt->link_info & 0xffff, evt->unknown1 & 0xffff, evt->endpoint_name);
+
+  char* vendor = evt->endpoint_name;
+  // Vendor and device names are NULL-separated in the result array
+  char* device = evt->endpoint_name + strlen(evt->endpoint_name) + 1;
+  if (device >= (evt->endpoint_name + sizeof(evt->endpoint_name)))
+    device = NULL;
+
+  kprintf("handleDeviceConnected(icm_fr): uuid=%s connection_key=%x connection_id=%x link_info=%x unk1=%x\n  endpoint_name=%s %s\n",
+    uuidstr, evt->connection_key & 0xff, evt->connection_id & 0xff, evt->link_info & 0xffff, evt->unknown1 & 0xffff, vendor, device);
 
   IOThunderboltConnectionManager* cm = m_controller->getConnectionManager();
   if (cm) {

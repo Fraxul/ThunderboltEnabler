@@ -28,6 +28,7 @@
 #define TB_CFG_SWITCH   2
 #define TB_CFG_COUNTERS 3
 
+#define TB_CFG_PKG_ICM_EVENT 10
 #define TB_CFG_PKG_ICM_CMD   11
 #define TB_CFG_PKG_ICM_RESP  12
 
