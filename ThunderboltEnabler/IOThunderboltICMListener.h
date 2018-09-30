@@ -13,6 +13,7 @@ public:
 
   virtual void processResponse(IOThunderboltReceiveCommand*) override;
   virtual bool initWithController(IOThunderboltController*) override;
+  virtual void free() override;
 
 protected:
   IOThunderboltController* m_controller;

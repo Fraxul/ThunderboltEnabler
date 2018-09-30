@@ -27,6 +27,8 @@ typedef uint64_t IOThunderboltTimeStamp; // ???
 class IOThunderboltController : public IOService {
   OSDeclareDefaultStructors(IOThunderboltController);
 public:
+  // OSObject
+  virtual void free() override;
 
   // IOService overrides
   virtual void systemWillShutdown(IOOptionBits) override;

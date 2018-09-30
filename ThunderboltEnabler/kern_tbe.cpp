@@ -4,6 +4,7 @@
 #include <Headers/kern_devinfo.hpp>
 #include <Headers/kern_iokit.hpp>
 #include "AppleThunderboltGenericHAL.h"
+#include "ICMXDomainRegistry.h"
 #include "IOThunderboltConfigICMCommand.h"
 #include "IOThunderboltConfigReadCommand.h"
 #include "IOThunderboltConnectionManager.h"
@@ -51,12 +52,32 @@ static UserPatcher::BinaryModPatch expressCardEnumDisablePatch {
 static UserPatcher::ProcInfo procSysUIserver { sysUIServerPath, sysUIServerPath_strlen, 1 };
 static UserPatcher::BinaryModInfo expressCardMenuExtraPatch { binaryExpressCardMenuExtra, &expressCardEnumDisablePatch, 1};
 
+int XDomainUUIDRequestCommand_submit(void* that);
+int XDomainUUIDRequestCommand_submitSynchronous(void* that);
 
-// Linker stub for function routing
+// Linker stubs for function and vtable patching
 extern "C" {
   void* _ZN30IOThunderboltConnectionManager14withControllerEP23IOThunderboltController(void*);
   int _ZN24IOThunderboltControlPath17rxCommandCallbackEPviP27IOThunderboltReceiveCommand(void*, void*, unsigned int, void*);
   int _ZN31AppleThunderboltNHITransmitRing18submitCommandToNHIEP28IOThunderboltTransmitCommand(void*, IOThunderboltTransmitCommand*);
+
+  extern size_t _ZTV44IOThunderboltConfigXDomainUUIDRequestCommand;
+  int _ZN26IOThunderboltConfigCommand6submitEv(void*);
+  int _ZN26IOThunderboltConfigCommand17submitSynchronousEv(void*);
+
+  int _ZN44IOThunderboltConfigXDomainUUIDRequestCommand8completeEi(void*, int);
+}
+
+static size_t* scanVtableForFunction(size_t* vtable_base, void* function) {
+  // Skip over the first couple of zero entries. There are typically two zero-slots in IOKit vtables.
+  while ((*vtable_base) == 0) ++vtable_base;
+
+  // Scan for a matching entry, stopping if we encounter a zero-slot.
+  for (; *vtable_base; ++vtable_base) {
+    if (*vtable_base == reinterpret_cast<size_t>(function))
+      return vtable_base;
+  }
+  return NULL;
 }
 
 static void TBE_onPatcherLoaded_callback(void* that, KernelPatcher& patcher) { reinterpret_cast<TBE*>(that)->onPatcherLoaded(patcher); }
@@ -65,6 +86,7 @@ void TBE::init() {
   callbackInst = this;
   
   kprintf("ThunderboltEnabler: TBE::init()\n");
+  ICMXDomainRegistry::staticInit();
 
 
   // We need to make a very early patch to IOThunderboltConnectionManager::withController() to ensure that we can hook the TB controller
@@ -84,6 +106,19 @@ void TBE::init() {
     kprintf("ThunderboltEnabler: ERROR: offset doesn't fit into int32? can't assemble patch.\n");
     return;
   }
+
+  kprintf("ThunderboltEnabler: Scanning vtable at %p\n", &_ZTV44IOThunderboltConfigXDomainUUIDRequestCommand);
+  // Compute offsets to patch in the IOThunderboltConfigXDomainUUIDRequestCommand vtable
+  size_t* uuidreq_submit_offset = scanVtableForFunction(&_ZTV44IOThunderboltConfigXDomainUUIDRequestCommand, reinterpret_cast<void*>(&_ZN26IOThunderboltConfigCommand6submitEv));
+  kprintf("ThunderboltEnabler: IOThunderboltConfigXDomainUUIDRequestCommand vtable contains IOThunderboltConfigCommand::submit (%p) at %p\n", reinterpret_cast<void*>(&_ZN26IOThunderboltConfigCommand6submitEv), uuidreq_submit_offset);
+  size_t* uuidreq_submitSynchronous_offset = scanVtableForFunction(&_ZTV44IOThunderboltConfigXDomainUUIDRequestCommand, reinterpret_cast<void*>(&_ZN26IOThunderboltConfigCommand17submitSynchronousEv));
+  kprintf("ThunderboltEnabler: IOThunderboltConfigXDomainUUIDRequestCommand vtable contains IOThunderboltConfigCommand::submitSynchronous (%p) at %p\n", reinterpret_cast<void*>(&_ZN26IOThunderboltConfigCommand17submitSynchronousEv), uuidreq_submitSynchronous_offset);
+
+  if (!(uuidreq_submit_offset && uuidreq_submitSynchronous_offset)) {
+    kprintf("ThunderboltEnabler: ERROR: Unable to find some vtable offsets to patch, bailing out.\n");
+    return;
+  }
+  
 
   // Disable interrupts while we mess around with CR0
   asm volatile("cli");
@@ -109,6 +144,10 @@ void TBE::init() {
   // Flush the cache line containing the patched function
   asm volatile("mfence");
   asm volatile("clflush (%0)" : : "r" (&_ZN30IOThunderboltConnectionManager14withControllerEP23IOThunderboltController));
+
+  // Patch vtables
+  *uuidreq_submit_offset = reinterpret_cast<size_t>(&XDomainUUIDRequestCommand_submit);
+  *uuidreq_submitSynchronous_offset = reinterpret_cast<size_t>(&XDomainUUIDRequestCommand_submitSynchronous);
 
   // Restore protected page write state
   if (cr0 & CR0_WP) {
@@ -564,4 +603,46 @@ size_t pci_find_ext_capability(IOPCIDevice* pci, uint32_t capID) {
   return true;
 }
 #endif
+
+//// ---------------------------------------------------------------------------------------------------------------------------------- ////
+
+// Patched functions for the IOThunderboltConfigXDomainUUIDRequestCommand class
+
+int XDomainUUIDRequestCommand_fillResponseFields(void* that) {
+  // Get the route string and look up the UUID in the ICM XDomain registry.
+  uint64_t routeString = *reinterpret_cast<uint64_t*>((reinterpret_cast<char*>(that) + 0x78));
+  IOThunderboltController* controller = *reinterpret_cast<IOThunderboltController**>((reinterpret_cast<char*>(that) + 0x28));
+  kprintf("XDomainUUIDRequestCommand_fillResponseFields: routeString=%llx controller=%p\n", routeString, controller);
+  ICMXDomainRegistry* registry = ICMXDomainRegistry::registryForController(controller);
+
+  ICMXDomainRegistryEntry* xde = registry->entryForRouteString(routeString);
+  if (!xde) {
+    kprintf("XDomainUUIDRequestCommand_fillResponseFields: no matching XDomain entry in the registry (%p) for this controller (%p)\n", registry, controller);
+    return -1;
+  }
+
+  uuid_string_t uuidstr;
+  uuid_unparse(xde->m_remoteUUID, uuidstr);
+  kprintf("XDomainUUIDRequestCommand_fillResponseFields: found matching entry. remote UUID=%s, remote route=%llx\n", uuidstr, xde->m_remoteRoute);
+
+  uuid_copy(reinterpret_cast<unsigned char*>(that) + 0x9f, xde->m_remoteUUID);
+  uint64_t* remoteRouteString = reinterpret_cast<uint64_t*>((reinterpret_cast<char*>(that) + 0xb8));
+  *remoteRouteString = xde->m_remoteRoute;
+
+  return 0;
+}
+
+int XDomainUUIDRequestCommand_submit(void* that) {
+  int res = XDomainUUIDRequestCommand_fillResponseFields(that);
+
+  // Response fields are filled. We can now call the completion.
+  _ZN44IOThunderboltConfigXDomainUUIDRequestCommand8completeEi(that, res);
+
+  return res;
+}
+
+int XDomainUUIDRequestCommand_submitSynchronous(void* that) {
+  // Just fill the response fields. Don't need to call the completion for a synchronous submit
+  return XDomainUUIDRequestCommand_fillResponseFields(that);
+}
 

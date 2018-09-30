@@ -30,6 +30,12 @@
 		66AA13EB2151D75000CD55BF /* IOThunderboltConnectionManager.h in Headers */ = {isa = PBXBuildFile; fileRef = 66AA13EA2151D75000CD55BF /* IOThunderboltConnectionManager.h */; };
 		66BE0FCD21600BC50057C6DD /* ThunderboltAdapterStubs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 66BE0FCC21600BC50057C6DD /* ThunderboltAdapterStubs.cpp */; };
 		66BE0FCF21601CE10057C6DD /* AppleThunderboltGenericHAL.h in Headers */ = {isa = PBXBuildFile; fileRef = 66BE0FCE21601CE10057C6DD /* AppleThunderboltGenericHAL.h */; };
+		66BE0FD221606D4E0057C6DD /* ICMXDomainRegistry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 66BE0FD021606D4E0057C6DD /* ICMXDomainRegistry.cpp */; };
+		66BE0FD321606D4E0057C6DD /* ICMXDomainRegistry.h in Headers */ = {isa = PBXBuildFile; fileRef = 66BE0FD121606D4E0057C6DD /* ICMXDomainRegistry.h */; };
+		66BE0FD821616BB60057C6DD /* IOThunderboltLocalNode.h in Headers */ = {isa = PBXBuildFile; fileRef = 66BE0FD421616BB60057C6DD /* IOThunderboltLocalNode.h */; };
+		66BE0FD921616BB60057C6DD /* IOThunderboltNub.h in Headers */ = {isa = PBXBuildFile; fileRef = 66BE0FD521616BB60057C6DD /* IOThunderboltNub.h */; };
+		66BE0FDA21616BB60057C6DD /* IOThunderboltSwitch.h in Headers */ = {isa = PBXBuildFile; fileRef = 66BE0FD621616BB60057C6DD /* IOThunderboltSwitch.h */; };
+		66BE0FDB21616BB60057C6DD /* IOThunderboltPort.h in Headers */ = {isa = PBXBuildFile; fileRef = 66BE0FD721616BB60057C6DD /* IOThunderboltPort.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -58,6 +64,12 @@
 		66AA13EA2151D75000CD55BF /* IOThunderboltConnectionManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltConnectionManager.h; sourceTree = "<group>"; };
 		66BE0FCC21600BC50057C6DD /* ThunderboltAdapterStubs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ThunderboltAdapterStubs.cpp; sourceTree = "<group>"; };
 		66BE0FCE21601CE10057C6DD /* AppleThunderboltGenericHAL.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AppleThunderboltGenericHAL.h; sourceTree = "<group>"; };
+		66BE0FD021606D4E0057C6DD /* ICMXDomainRegistry.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ICMXDomainRegistry.cpp; sourceTree = "<group>"; };
+		66BE0FD121606D4E0057C6DD /* ICMXDomainRegistry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ICMXDomainRegistry.h; sourceTree = "<group>"; };
+		66BE0FD421616BB60057C6DD /* IOThunderboltLocalNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltLocalNode.h; sourceTree = "<group>"; };
+		66BE0FD521616BB60057C6DD /* IOThunderboltNub.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltNub.h; sourceTree = "<group>"; };
+		66BE0FD621616BB60057C6DD /* IOThunderboltSwitch.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltSwitch.h; sourceTree = "<group>"; };
+		66BE0FD721616BB60057C6DD /* IOThunderboltPort.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltPort.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -91,6 +103,12 @@
 		667A262D213F7EDB00014555 /* ThunderboltEnabler */ = {
 			isa = PBXGroup;
 			children = (
+				66BE0FD421616BB60057C6DD /* IOThunderboltLocalNode.h */,
+				66BE0FD521616BB60057C6DD /* IOThunderboltNub.h */,
+				66BE0FD721616BB60057C6DD /* IOThunderboltPort.h */,
+				66BE0FD621616BB60057C6DD /* IOThunderboltSwitch.h */,
+				66BE0FD021606D4E0057C6DD /* ICMXDomainRegistry.cpp */,
+				66BE0FD121606D4E0057C6DD /* ICMXDomainRegistry.h */,
 				66BE0FCE21601CE10057C6DD /* AppleThunderboltGenericHAL.h */,
 				66BE0FCC21600BC50057C6DD /* ThunderboltAdapterStubs.cpp */,
 				66AA13EA2151D75000CD55BF /* IOThunderboltConnectionManager.h */,
@@ -131,6 +149,7 @@
 				667A264F214DD43C00014555 /* IOThunderboltCommand.h in Headers */,
 				667A2642214C612300014555 /* IOThunderboltICM.h in Headers */,
 				66AA13E52151D53500CD55BF /* IOThunderboltControlPath.h in Headers */,
+				66BE0FDB21616BB60057C6DD /* IOThunderboltPort.h in Headers */,
 				667A2649214DD35C00014555 /* IOThunderboltTransmitCommand.h in Headers */,
 				66AA13DD2151A2E900CD55BF /* IOThunderboltConfigReadCommand.h in Headers */,
 				66AA13E82151D53500CD55BF /* tb_constants.h in Headers */,
@@ -138,7 +157,11 @@
 				66AA13E72151D53500CD55BF /* IOThunderboltICMListener.h in Headers */,
 				667A264A214DD35C00014555 /* IOThunderboltConfigICMCommand.h in Headers */,
 				667A264C214DD35C00014555 /* IOThunderboltReceiveCommand.h in Headers */,
+				66BE0FD921616BB60057C6DD /* IOThunderboltNub.h in Headers */,
+				66BE0FD321606D4E0057C6DD /* ICMXDomainRegistry.h in Headers */,
+				66BE0FDA21616BB60057C6DD /* IOThunderboltSwitch.h in Headers */,
 				66AA13E42151D53500CD55BF /* IOThunderboltControlPathListener.h in Headers */,
+				66BE0FD821616BB60057C6DD /* IOThunderboltLocalNode.h in Headers */,
 				66BE0FCF21601CE10057C6DD /* AppleThunderboltGenericHAL.h in Headers */,
 				667A263D213F807A00014555 /* kern_tbe.hpp in Headers */,
 			);
@@ -212,6 +235,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				66BE0FCD21600BC50057C6DD /* ThunderboltAdapterStubs.cpp in Sources */,
+				66BE0FD221606D4E0057C6DD /* ICMXDomainRegistry.cpp in Sources */,
 				667A263C213F807A00014555 /* kern_tbe.cpp in Sources */,
 				667A2643214C612300014555 /* IOThunderboltICM.cpp in Sources */,
 				667A2637213F7F7200014555 /* kern_start.cpp in Sources */,

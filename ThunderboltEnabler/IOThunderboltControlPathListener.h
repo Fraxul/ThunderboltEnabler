@@ -9,6 +9,10 @@ class IOThunderboltControlPathListener : public OSObject {
 public:
   typedef void* Completion;
 
+  // OSObject overrides
+  virtual void free() override;
+
+
   virtual void processResponse(IOThunderboltReceiveCommand*);
   virtual bool initWithController(IOThunderboltController*);
   virtual void setCompletion(IOThunderboltControlPathListener::Completion);
