@@ -4,6 +4,7 @@
 
 class IOThunderboltController;
 class ICMXDomainRegistryEntry;
+class AppleThunderboltIPService;
 
 class ICMXDomainRegistry : public OSArray {
   OSDeclareDefaultStructors(ICMXDomainRegistry);
@@ -17,8 +18,15 @@ public:
   virtual ICMXDomainRegistryEntry* entryForRouteString(uint64_t localRoute);
   virtual ICMXDomainRegistryEntry* entryForRemoteUUID(uuid_t);
 
+  virtual void setIPService(AppleThunderboltIPService*);
+
+  virtual void didLearnDomainUUID(uuid_t);
+
 protected:
+  void applyIPServiceUUIDPatch();
+
   IOThunderboltController* m_controller;
+  AppleThunderboltIPService* m_ipService;
 };
 
 class ICMXDomainRegistryEntry : public OSObject {

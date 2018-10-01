@@ -13,7 +13,6 @@
 // Defined in IOThunderboltFamily
 extern "C" {
   uint32_t IOThunderboltCRC32(void*, uint32_t);
-  OSObject* _ZN19IOThunderboltString11withCStringEPKc(const char*);
 };
 
 OSDefineMetaClassAndStructors(IOThunderboltICMListener, IOThunderboltControlPathListener);
@@ -145,31 +144,11 @@ void IOThunderboltICMListener::handleXDomainConnected(icm_fr_event_xdomain_conne
   kprintf("handleXDomainConnected(icm_fr): local_uuid=%s\n", uuidstr);
   kprintf("handleXDomainConnected(icm_fr): link_info=%x local_route=%08x%08x remote_route=%08x%08x\n", evt->reserved & 0xfff, evt->local_route_hi, evt->local_route_lo, evt->remote_route_hi, evt->remote_route_lo);
 
-  // Patch the IOThunderboltLocalNode if its UUID doesn't match the local_uuid in the connection packet.
-  // We don't have any way to set the local node UUID correctly before receiving the first XDomain connection.
-  {
-    uuid_t localNode_uuid;
-    IOThunderboltLocalNode* localNode = m_controller->getLocalNode();
-    localNode->getDomainUUID(localNode_uuid);
-    if (uuid_compare(localNode_uuid, evt->local_uuid) != 0) {
-      uuid_unparse(localNode_uuid, uuidstr);
-      kprintf("handleXDomainConnected: IOThunderboltLocalNode's UUID (%s) doesn't match local_uuid in this request, patching it\n", uuidstr);
-
-      // Patch the object member variable
-      uint8_t* localNode_uuid_to_patch = (reinterpret_cast<uint8_t*>(localNode) + 0xa8);
-      memcpy(localNode_uuid_to_patch, evt->local_uuid, 16);
-
-      // Fixup the IORegistryEntry "Domain UUID" property on the IOThunderboltLocalNode
-      uuid_unparse(evt->local_uuid, uuidstr);
-      OSObject* uuidProp = _ZN19IOThunderboltString11withCStringEPKc(uuidstr);
-      localNode->setProperty("Domain UUID", uuidProp);
-      OSSafeReleaseNULL(uuidProp);
-    }
-  }
-  
-
   ICMXDomainRegistry* registry = ICMXDomainRegistry::registryForController(m_controller);
+  // Notify the XDomain registry that we've learned the local UUID for this domain (which isn't available until the first XDomain connection notification arrives)
+  registry->didLearnDomainUUID(evt->local_uuid);
 
+  // Register the new XDomain link
   ICMXDomainRegistryEntry* newLink = ICMXDomainRegistryEntry::withLinkDetails(evt->local_uuid, evt->remote_uuid, combine_route(evt->local_route_hi, evt->local_route_lo), combine_route(evt->remote_route_hi, evt->remote_route_lo));
   registry->registerXDomainLink(newLink);
 

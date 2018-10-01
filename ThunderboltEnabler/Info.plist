@@ -92,24 +92,18 @@
   <string>Copyright © 2018 Fraxul. All rights reserved.</string>
   <key>OSBundleLibraries</key>
   <dict>
-    <key>com.apple.kpi.bsd</key>
-    <string>12.0.0</string>
-    <key>com.apple.kpi.dsep</key>
-    <string>12.0.0</string>
     <key>com.apple.kpi.iokit</key>
-    <string>12.0.0</string>
+    <string>17.7</string>
     <key>com.apple.kpi.libkern</key>
-    <string>12.0.0</string>
+    <string>17.7</string>
     <key>com.apple.kpi.mach</key>
-    <string>12.0.0</string>
-    <key>com.apple.kpi.unsupported</key>
-    <string>12.0.0</string>
+    <string>17.7</string>
     <key>com.apple.iokit.IOPCIFamily</key>
-    <string>1.0.0b1</string>
-    <key>com.apple.iokit.IOThunderboltFamily</key>
-    <string>6.7.8</string>
+    <string>2.9</string>
     <key>com.apple.driver.AppleThunderboltNHI</key>
     <string>4.7.2</string>
+    <key>com.apple.iokit.IOThunderboltFamily</key>
+    <string>6.7.8</string>
     <key>as.vit9696.Lilu</key>
     <string>1.2.0</string>
   </dict>

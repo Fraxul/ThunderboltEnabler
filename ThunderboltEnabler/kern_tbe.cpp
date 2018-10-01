@@ -11,6 +11,7 @@
 #include "IOThunderboltController.h"
 #include "IOThunderboltControlPath.h"
 #include "IOThunderboltICMListener.h"
+#include "IOThunderboltLocalNode.h"
 #include "IOThunderboltReceiveCommand.h"
 #include "IOThunderboltTransmitCommand.h"
 #include <IOKit/IOBufferMemoryDescriptor.h>
@@ -52,20 +53,34 @@ static UserPatcher::BinaryModPatch expressCardEnumDisablePatch {
 static UserPatcher::ProcInfo procSysUIserver { sysUIServerPath, sysUIServerPath_strlen, 1 };
 static UserPatcher::BinaryModInfo expressCardMenuExtraPatch { binaryExpressCardMenuExtra, &expressCardEnumDisablePatch, 1};
 
+static const char* pathAppleThunderboltIP[] {
+  "/System/Library/Extensions/AppleThunderboltIP.kext/Contents/MacOS/AppleThunderboltIP",
+};
+static KernelPatcher::KextInfo kexts[] {
+  {"com.apple.driver.AppleThunderboltIP", pathAppleThunderboltIP, arrsize(pathAppleThunderboltIP), {true}, {}, KernelPatcher::KextInfo::Unloaded},
+};
+
+
 int XDomainUUIDRequestCommand_submit(void* that);
 int XDomainUUIDRequestCommand_submitSynchronous(void* that);
 
+bool ThunderboltIPService_start(void*, IOService*);
+static bool(*ThunderboltIPService_start_orig)(void*, IOService*) = nullptr;
+
 // Linker stubs for function and vtable patching
 extern "C" {
+  // IOThunderboltFamily.kext
   void* _ZN30IOThunderboltConnectionManager14withControllerEP23IOThunderboltController(void*);
   int _ZN24IOThunderboltControlPath17rxCommandCallbackEPviP27IOThunderboltReceiveCommand(void*, void*, unsigned int, void*);
-  int _ZN31AppleThunderboltNHITransmitRing18submitCommandToNHIEP28IOThunderboltTransmitCommand(void*, IOThunderboltTransmitCommand*);
 
   extern size_t _ZTV44IOThunderboltConfigXDomainUUIDRequestCommand;
   int _ZN26IOThunderboltConfigCommand6submitEv(void*);
   int _ZN26IOThunderboltConfigCommand17submitSynchronousEv(void*);
 
   int _ZN44IOThunderboltConfigXDomainUUIDRequestCommand8completeEi(void*, int);
+
+  // AppleThunderboltNHI.kext
+  int _ZN31AppleThunderboltNHITransmitRing18submitCommandToNHIEP28IOThunderboltTransmitCommand(void*, IOThunderboltTransmitCommand*);
 }
 
 static size_t* scanVtableForFunction(size_t* vtable_base, void* function) {
@@ -118,6 +133,8 @@ void TBE::init() {
     kprintf("ThunderboltEnabler: ERROR: Unable to find some vtable offsets to patch, bailing out.\n");
     return;
   }
+
+  // Save original AppleThunderboltIPService::start() function pointer
   
 
   // Disable interrupts while we mess around with CR0
@@ -162,6 +179,11 @@ void TBE::init() {
   lilu.onProcLoad(&procSysUIserver, 1, nullptr, nullptr, &expressCardMenuExtraPatch, 1);
 
   lilu.onPatcherLoad(&TBE_onPatcherLoaded_callback, this);
+
+  lilu.onKextLoadForce(kexts, arrsize(kexts),
+    [](void* user, KernelPatcher& patcher, size_t index, mach_vm_address_t address, size_t size) {
+      static_cast<TBE*>(user)->patchKext(patcher, index, address, size);
+    }, this);
 }
 
 void TBE::deinit() {
@@ -190,6 +212,40 @@ void TBE::onPatcherLoaded(KernelPatcher& patcher) {
     patcher.clearError();
   }
 #endif
+}
+
+void TBE::patchKext(KernelPatcher &patcher, size_t index, mach_vm_address_t address, size_t size) {
+  if (index == kexts[0].loadIndex) {
+    // AppleThunderboltIP. This kext ships without the OSBundleCompatible version key in its Info.plist which prevents us
+    // from linking against it. Fortunately, it loads much later than the NHI and family kexts, after the kext patcher is ready.
+
+    kprintf("TBE::patchKext: Processing kext %s\n", kexts[0].id);
+
+    // Patch the vtable for AppleThunderboltIP
+    ThunderboltIPService_start_orig = reinterpret_cast<bool(*)(void*, IOService*)>(patcher.solveSymbol(index, "__ZN25AppleThunderboltIPService5startEP9IOService", address, size));
+    size_t* ipservice_vtable = reinterpret_cast<size_t*>(patcher.solveSymbol(index, "__ZTV25AppleThunderboltIPService", address, size));
+    kprintf("TBE::patchKext: AppleThunderboltIPService::start() is at %p; vtable is at %p\n", reinterpret_cast<void*>(ThunderboltIPService_start_orig), ipservice_vtable);
+    size_t* ipservice_start_offset = scanVtableForFunction(ipservice_vtable, reinterpret_cast<void*>(ThunderboltIPService_start_orig));
+    kprintf("TBE::patchKext: ipservice_start_offset=%p\n", ipservice_start_offset);
+    if (!ipservice_start_offset)
+      return; // ???
+
+    // Disable interrupts and enable writing to protected pages to patch the vtable
+    asm volatile("cli");
+    uintptr_t cr0 = get_cr0();
+    if (cr0 & CR0_WP) {
+      set_cr0(cr0 & (~CR0_WP));
+    }
+
+    *ipservice_start_offset = reinterpret_cast<size_t>(&ThunderboltIPService_start);
+
+    // Restore CR0 and interrupt state
+    if (cr0 & CR0_WP) {
+      set_cr0(cr0);
+    }
+    asm volatile("sti");
+
+  }
 }
 
 //// ---------------------------------------------------------------------------------------------------------------------------------- ////
@@ -646,3 +702,20 @@ int XDomainUUIDRequestCommand_submitSynchronous(void* that) {
   return XDomainUUIDRequestCommand_fillResponseFields(that);
 }
 
+bool ThunderboltIPService_start(void* that, IOService* provider) {
+  // Save a pointer to the IP service on the XDomain registry for its controller so we can patch the domain UUID later
+  IOThunderboltLocalNode* localNode = OSDynamicCast(IOThunderboltLocalNode, provider);
+  IOThunderboltController* controller = nullptr;
+  if (localNode)
+    controller = localNode->getController();
+
+  if (controller) {
+    kprintf("ThunderboltEnabler: got IP service %p for controller %p\n", that, controller);
+    ICMXDomainRegistry::registryForController(controller)->setIPService(reinterpret_cast<AppleThunderboltIPService*>(that));
+  } else {
+    kprintf("ThunderboltEnabler: ThunderboltIPService_start(): can't get the controller for local node provider %p\n", provider);
+  }
+
+  // Call through to the original function
+  return ThunderboltIPService_start_orig(that, provider);
+}

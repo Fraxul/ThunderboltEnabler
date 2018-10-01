@@ -1,5 +1,12 @@
 #include "ICMXDomainRegistry.h"
+#include "IOThunderboltController.h"
+#include "IOThunderboltLocalNode.h"
 #include <IOKit/IOLocks.h>
+
+// Defined in IOThunderboltFamily
+extern "C" {
+  OSObject* _ZN19IOThunderboltString11withCStringEPKc(const char*);
+};
 
 static OSArray* s_controllerRegistry = nullptr;
 static IOSimpleLock* s_controllerRegistryLock = nullptr;
@@ -35,6 +42,7 @@ OSDefineMetaClassAndStructors(ICMXDomainRegistry, OSArray);
     assert(res);
     res->initWithCapacity(4);
     res->m_controller = controller;
+    res->m_ipService = NULL;
 
     s_controllerRegistry->setObject(res);
     // OSArray adds a ref, so release ours
@@ -116,6 +124,56 @@ void ICMXDomainRegistry::unregisterXDomainLink(ICMXDomainRegistryEntry* entry) {
       return;
     }
   }
+}
+
+void ICMXDomainRegistry::setIPService(AppleThunderboltIPService* ipService) {
+  if (m_ipService && m_ipService != ipService) {
+    kprintf("ICMXDomainRegistry::setIPService: WARNING: This domain already has an IP service set (%p, new is %p)?\n", m_ipService, ipService);
+  }
+  m_ipService = ipService;
+
+  // Just in case we somehow missed patching the UUID on the IP service before, patch it now.
+  // This is harmless if we haven't learned the correct domain UUID yet.
+  applyIPServiceUUIDPatch();
+}
+
+void ICMXDomainRegistry::didLearnDomainUUID(uuid_t newLocalUUID) {
+  uuid_t localNode_old_uuid;
+  IOThunderboltLocalNode* localNode = m_controller->getLocalNode();
+  localNode->getDomainUUID(localNode_old_uuid);
+  if (uuid_compare(localNode_old_uuid, newLocalUUID) == 0)
+    return; // UUID already up-to-date
+
+  // Patch the IOThunderboltLocalNode if its UUID doesn't match the local_uuid in the connection packet.
+  // We don't have any way to set the local node UUID correctly before receiving the first XDomain connection.
+  uuid_string_t localNode_old_uuidstr, newLocalUUIDstr;
+
+  uuid_unparse(localNode_old_uuid, localNode_old_uuidstr);
+  uuid_unparse(newLocalUUID, newLocalUUIDstr);
+  kprintf("ICMXDomainRegistry::didLearnDomainUUID: IOThunderboltLocalNode's UUID (%s) is being replaced with learned UUID %s\n", localNode_old_uuidstr, newLocalUUIDstr);
+
+  // Patch the object member variable
+  uint8_t* localNode_uuid_to_patch = (reinterpret_cast<uint8_t*>(localNode) + 0xa8);
+  memcpy(localNode_uuid_to_patch, newLocalUUID, 16);
+
+  // Fixup the IORegistryEntry "Domain UUID" property on the IOThunderboltLocalNode
+  OSObject* uuidProp = _ZN19IOThunderboltString11withCStringEPKc(newLocalUUIDstr);
+  localNode->setProperty("Domain UUID", uuidProp);
+  OSSafeReleaseNULL(uuidProp);
+
+  // Apply the patch to the IP service. We should have a pointer to it by now.
+  applyIPServiceUUIDPatch();
+}
+
+void ICMXDomainRegistry::applyIPServiceUUIDPatch() {
+  if (!m_ipService)
+    return;
+
+  kprintf("ICMXDomainRegistry::applyIPServiceUUIDPatch(): patching AppleThunderboltIPService at %p\n", m_ipService);
+
+  uint8_t* ipService_uuid_to_patch = (reinterpret_cast<uint8_t*>(m_ipService) + 0xe0);
+  IOThunderboltLocalNode* localNode = m_controller->getLocalNode();
+  localNode->getDomainUUID(ipService_uuid_to_patch);
 }
 
 
