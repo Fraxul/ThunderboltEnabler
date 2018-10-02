@@ -564,26 +564,24 @@ size_t pci_find_ext_capability(IOPCIDevice* pci, uint32_t capID) {
 //// ---------------------------------------------------------------------------------------------------------------------------------- ////
 
 /*static*/ int TBE::wrapSubmitTxCommandToNHI(void* that, IOThunderboltTransmitCommand* txCommand) {
-  kprintf("wrapSubmitTxCommandToNHI: sof=0x%x eof=0x%x offset=0x%llx size=0x%llx\n", txCommand->getSOF(), txCommand->getEOF(), txCommand->getOffset(), txCommand->getLength());
+  kprintf("txCommand: sof=0x%x eof=0x%x length=0x%llx\n", txCommand->getSOF(), txCommand->getEOF(), txCommand->getLength());
   uint32_t* txMem = reinterpret_cast<uint32_t*>(static_cast<IOBufferMemoryDescriptor*>(txCommand->getMemoryDescriptor())->getBytesNoCopy());
   size_t txWords = txCommand->getLength() / 4;
   for (size_t i = 0; i < txWords; ++i) {
-    kprintf("wrapSubmitTxCommandToNHI:   %03zx  %08x\n", i * 4, txMem[i]);
+    kprintf("txCommand:   %03zx  %08x\n", i * 4, txMem[i]);
   }
 
   int res = FunctionCast(wrapSubmitTxCommandToNHI, callbackInst->origSubmitTxCommandToNHI)(that, txCommand);
-  kprintf("wrapSubmitTxCommandToNHI: res=0x%x\n", res);
   return res;
 }
 
 /*static*/ int TBE::wrapRxCommandCallback(void* that, void* arg1, unsigned int arg2, IOThunderboltReceiveCommand* rxCommand) {
-  kprintf("wrapRxCommandCallback: rxCommand=%p\n", rxCommand);
   if (rxCommand) {
     size_t rxWords = rxCommand->getReceivedLength() / 4;
-    kprintf("rxCommand sof=0x%x eof=0x%x\n", rxCommand->getSOF(), rxCommand->getEOF());
+    kprintf("rxCommand: sof=0x%x eof=0x%x length=0x%llx\n", rxCommand->getSOF(), rxCommand->getEOF(), rxCommand->getReceivedLength());
     uint32_t* rxMem = reinterpret_cast<uint32_t*>(static_cast<IOBufferMemoryDescriptor*>(rxCommand->getMemoryDescriptor())->getBytesNoCopy());
     for (size_t i = 0; i < rxWords; ++i) {
-      kprintf("   %03zx  %08x\n", i * 4, rxMem[i]);
+      kprintf("rxCommand:   %03zx  %08x\n", i * 4, rxMem[i]);
     }
   }
 

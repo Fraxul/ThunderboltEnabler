@@ -48,15 +48,11 @@ void IOThunderboltICMListener::processResponse(IOThunderboltReceiveCommand* rxCo
   if (!rxCommand)
     return;
 
-  size_t rxWords = rxCommand->getReceivedLength() / 4;
-  kprintf("rxCommand sof=0x%x eof=0x%x\n", rxCommand->getSOF(), rxCommand->getEOF());
   if (rxCommand->getEOF() != TB_CFG_PKG_ICM_EVENT)
     return; // not relevant
 
   uint32_t* rxMemRaw = reinterpret_cast<uint32_t*>(static_cast<IOBufferMemoryDescriptor*>(rxCommand->getMemoryDescriptor())->getBytesNoCopy());
-  for (size_t i = 0; i < rxWords; ++i) {
-    kprintf("   %03lx  %08x\n", i * 4, rxMemRaw[i]);
-  }
+  size_t rxWords = rxCommand->getReceivedLength() / 4;
 
   uint32_t crc_wire = OSSwapBigToHostInt32(rxMemRaw[rxWords - 1]);
   uint32_t crc_computed = IOThunderboltCRC32(rxMemRaw, (uint32_t) ((rxWords - 1) * 4));
