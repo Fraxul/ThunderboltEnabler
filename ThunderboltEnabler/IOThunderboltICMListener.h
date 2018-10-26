@@ -3,6 +3,8 @@
 
 struct icm_fr_event_device_connected;
 struct icm_fr_event_device_disconnected;
+struct icm_fr_event_xdomain_connected;
+struct icm_fr_event_xdomain_disconnected;
 
 class IOThunderboltICMListener : public IOThunderboltControlPathListener {
   OSDeclareDefaultStructors(IOThunderboltICMListener);
@@ -18,5 +20,7 @@ protected:
 
   void handleDeviceConnected(icm_fr_event_device_connected*);
   void handleDeviceDisconnected(icm_fr_event_device_disconnected*);
+  void handleXDomainConnected(icm_fr_event_xdomain_connected*);
+  void handleXDomainDisconnected(icm_fr_event_xdomain_disconnected*);
 };
 

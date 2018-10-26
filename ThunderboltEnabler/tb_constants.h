@@ -96,3 +96,22 @@ struct icm_fr_event_device_disconnected {
   uint16_t link_info;
 };
 
+struct icm_fr_event_xdomain_connected {
+  struct icm_pkg_header hdr;
+  uint16_t reserved;
+  uint16_t link_info;
+  uuid_t remote_uuid;
+  uuid_t local_uuid;
+  uint32_t local_route_hi;
+  uint32_t local_route_lo;
+  uint32_t remote_route_hi;
+  uint32_t remote_route_lo;
+};
+
+struct icm_fr_event_xdomain_disconnected {
+  struct icm_pkg_header hdr;
+  uint16_t reserved;
+  uint16_t link_info;
+  uuid_t remote_uuid;
+};
+

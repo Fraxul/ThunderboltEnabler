@@ -76,7 +76,12 @@ void IOThunderboltICMListener::processResponse(IOThunderboltReceiveCommand* rxCo
       break;
 
     case ICM_EVENT_XDOMAIN_CONNECTED:
+      handleXDomainConnected(reinterpret_cast<icm_fr_event_xdomain_connected*>(rxMem));
+      break;
+
     case ICM_EVENT_XDOMAIN_DISCONNECTED:
+      handleXDomainDisconnected(reinterpret_cast<icm_fr_event_xdomain_disconnected*>(rxMem));
+      break;
 
     default:
       kprintf("IOThunderboltICMListener: Unhandled ICM event type %x\n", header->code);
@@ -114,6 +119,35 @@ void IOThunderboltICMListener::handleDeviceDisconnected(icm_fr_event_device_disc
     cm->startRescan();
   } else {
     kprintf("handleDeviceDisconnected: controller doesn't (yet) have a CM to forward the plug event to\n");
+  }
+}
+
+void IOThunderboltICMListener::handleXDomainConnected(icm_fr_event_xdomain_connected* evt) {
+  uuid_string_t uuidstr;
+  uuid_unparse(evt->remote_uuid, uuidstr);
+  kprintf("handleXDomainConnected(icm_fr): remote_uuid=%s\n", uuidstr);
+  uuid_unparse(evt->local_uuid, uuidstr);
+  kprintf("handleXDomainConnected(icm_fr): local_uuid=%s\n", uuidstr);
+  kprintf("handleXDomainConnected(icm_fr): link_info=%x local_route=%08x%08x remote_route=%08x%08x\n", evt->reserved & 0xfff, evt->local_route_hi, evt->local_route_lo, evt->remote_route_hi, evt->remote_route_lo);
+
+  IOThunderboltConnectionManager* cm = m_controller->getConnectionManager();
+  if (cm) {
+    cm->startRescan();
+  } else {
+    kprintf("handleXDomainConnected: controller doesn't (yet) have a CM to forward the plug event to\n");
+  }
+}
+
+void IOThunderboltICMListener::handleXDomainDisconnected(icm_fr_event_xdomain_disconnected* evt) {
+  uuid_string_t uuidstr;
+  uuid_unparse(evt->remote_uuid, uuidstr);
+  kprintf("handleXDomainDisconnected(icm_fr): remote_uuid=%s link_info=%x\n", uuidstr, evt->link_info & 0xffff);
+
+  IOThunderboltConnectionManager* cm = m_controller->getConnectionManager();
+  if (cm) {
+    cm->startRescan();
+  } else {
+    kprintf("handleXDomainDisconnected: controller doesn't (yet) have a CM to forward the plug event to\n");
   }
 }
 
