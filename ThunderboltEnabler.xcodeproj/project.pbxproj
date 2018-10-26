@@ -29,6 +29,7 @@
 		66AA13E92151D53500CD55BF /* IOThunderboltController.h in Headers */ = {isa = PBXBuildFile; fileRef = 66AA13E32151D53500CD55BF /* IOThunderboltController.h */; };
 		66AA13EB2151D75000CD55BF /* IOThunderboltConnectionManager.h in Headers */ = {isa = PBXBuildFile; fileRef = 66AA13EA2151D75000CD55BF /* IOThunderboltConnectionManager.h */; };
 		66BE0FCD21600BC50057C6DD /* ThunderboltAdapterStubs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 66BE0FCC21600BC50057C6DD /* ThunderboltAdapterStubs.cpp */; };
+		66BE0FCF21601CE10057C6DD /* AppleThunderboltGenericHAL.h in Headers */ = {isa = PBXBuildFile; fileRef = 66BE0FCE21601CE10057C6DD /* AppleThunderboltGenericHAL.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -56,6 +57,7 @@
 		66AA13E32151D53500CD55BF /* IOThunderboltController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltController.h; sourceTree = "<group>"; };
 		66AA13EA2151D75000CD55BF /* IOThunderboltConnectionManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltConnectionManager.h; sourceTree = "<group>"; };
 		66BE0FCC21600BC50057C6DD /* ThunderboltAdapterStubs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ThunderboltAdapterStubs.cpp; sourceTree = "<group>"; };
+		66BE0FCE21601CE10057C6DD /* AppleThunderboltGenericHAL.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AppleThunderboltGenericHAL.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,6 +91,7 @@
 		667A262D213F7EDB00014555 /* ThunderboltEnabler */ = {
 			isa = PBXGroup;
 			children = (
+				66BE0FCE21601CE10057C6DD /* AppleThunderboltGenericHAL.h */,
 				66BE0FCC21600BC50057C6DD /* ThunderboltAdapterStubs.cpp */,
 				66AA13EA2151D75000CD55BF /* IOThunderboltConnectionManager.h */,
 				66AA13E32151D53500CD55BF /* IOThunderboltController.h */,
@@ -136,6 +139,7 @@
 				667A264A214DD35C00014555 /* IOThunderboltConfigICMCommand.h in Headers */,
 				667A264C214DD35C00014555 /* IOThunderboltReceiveCommand.h in Headers */,
 				66AA13E42151D53500CD55BF /* IOThunderboltControlPathListener.h in Headers */,
+				66BE0FCF21601CE10057C6DD /* AppleThunderboltGenericHAL.h in Headers */,
 				667A263D213F807A00014555 /* kern_tbe.hpp in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

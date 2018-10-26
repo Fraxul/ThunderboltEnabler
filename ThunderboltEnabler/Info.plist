@@ -107,7 +107,9 @@
     <key>com.apple.iokit.IOPCIFamily</key>
     <string>1.0.0b1</string>
     <key>com.apple.iokit.IOThunderboltFamily</key>
-    <string>1.0.0</string>
+    <string>6.7.8</string>
+    <key>com.apple.driver.AppleThunderboltNHI</key>
+    <string>4.7.2</string>
     <key>as.vit9696.Lilu</key>
     <string>1.2.0</string>
   </dict>

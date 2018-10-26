@@ -79,7 +79,7 @@ void IOThunderboltICMListener::processResponse(IOThunderboltReceiveCommand* rxCo
     case ICM_EVENT_XDOMAIN_DISCONNECTED:
 
     default:
-      printf("IOThunderboltICMListener: Unhandled ICM event type %x\n", header->code);
+      kprintf("IOThunderboltICMListener: Unhandled ICM event type %x\n", header->code);
       break;
   };
 }

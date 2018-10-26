@@ -59,6 +59,20 @@ struct icm_pkg_header {
   uint8_t total_packets;
 };
 
+struct icm_pkg_driver_ready {
+  icm_pkg_driver_ready() {
+    hdr.code = ICM_DRIVER_READY;
+  }
+  icm_pkg_header hdr;
+};
+
+struct icm_ar_pkg_driver_ready_response {
+  icm_pkg_header hdr;
+  uint8_t romver;
+  uint8_t ramver;
+  uint16_t info;
+};
+
 // icm event codes
 #define ICM_EVENT_DEVICE_CONNECTED      3
 #define ICM_EVENT_DEVICE_DISCONNECTED   4
