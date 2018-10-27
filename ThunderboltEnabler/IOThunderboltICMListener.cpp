@@ -1,4 +1,5 @@
 #include "IOThunderboltICMListener.h"
+#include "AppleThunderboltGenericHAL.h"
 #include "ICMXDomainRegistry.h"
 #include "IOThunderboltConnectionManager.h"
 #include "IOThunderboltController.h"
@@ -7,6 +8,9 @@
 #include "IOThunderboltReceiveCommand.h"
 #include "IOThunderboltSwitch.h"
 #include <IOKit/IOBufferMemoryDescriptor.h>
+#include <IOKit/IODeviceTreeSupport.h>
+#include <IOKit/pci/IOPCIDevice.h>
+#include <IOKit/IOTimerEventSource.h>
 
 #include "tb_constants.h"
 
@@ -34,13 +38,95 @@ bool IOThunderboltICMListener::initWithController(IOThunderboltController* contr
 
   m_controller = controller_;
 
+  m_rescanDelayTimer = IOTimerEventSource::timerEventSource(this, OSMemberFunctionCast(IOTimerEventSource::Action, this, &IOThunderboltICMListener::delayedRescanTimerFired));
+  m_controller->getWorkLoop()->addEventSource(m_rescanDelayTimer);
+
+  OSDictionary* matchDict = IOService::serviceMatching("IOThunderboltPort");
+  m_portPublishedNotification = IOService::addMatchingNotification(gIOPublishNotification, matchDict, OSMemberFunctionCast(IOServiceMatchingNotificationHandler, this, &IOThunderboltICMListener::handleThunderboltPortPublishedNotification), this, NULL);
+  m_portTerminatedNotification = IOService::addMatchingNotification(gIOTerminatedNotification, matchDict, OSMemberFunctionCast(IOServiceMatchingNotificationHandler, this, &IOThunderboltICMListener::handleThunderboltPortTerminatedNotification), this, NULL);
+  OSSafeReleaseNULL(matchDict);
+
+  // IOService -> IOThunderboltNHI -> AppleThunderboltNHI -> AppleThunderboltNHIType{1,2,3}
+  void* thunderboltNHI = *reinterpret_cast<void**>((reinterpret_cast<char*>(controller_) + 0x88));
+  // IOService -> AppleThunderboltGenericHAL -> AppleThunderboltHAL
+  AppleThunderboltGenericHAL* thunderboltHAL = *reinterpret_cast<AppleThunderboltGenericHAL**>((reinterpret_cast<char*>(thunderboltNHI) + 0x90));
+
+  IOPCIDevice* rootBridgeDevice = thunderboltHAL->getRootBridgeDevice(); // PXSX upstream of DSB{0,1,2}
+
+  m_dsb1 = NULL;
+  {
+    OSIterator* dsbIterator = rootBridgeDevice->getChildIterator(gIODTPlane);
+    for (OSObject* itObj = dsbIterator->getNextObject(); itObj; itObj = dsbIterator->getNextObject()) {
+      IOPCIDevice* itPCI = OSDynamicCast(IOPCIDevice, itObj);
+      if (!itPCI)
+        continue; // ???
+      if (itPCI->getDeviceNumber() == 1) {
+        m_dsb1 = itPCI;
+        break;
+      }
+    }
+    OSSafeReleaseNULL(dsbIterator);
+  }
+  if (!m_dsb1) {
+    kprintf("ThunderboltEnabler: Couldn't find DSB1 (PCI device with device-number 1) under root bridge device\n");
+  }
+
+
   return true;
 }
 
 void IOThunderboltICMListener::free() {
+  m_controller->getWorkLoop()->removeEventSource(m_rescanDelayTimer);
+  OSSafeReleaseNULL(m_rescanDelayTimer);
+
+  OSSafeReleaseNULL(m_portPublishedNotification);
+  OSSafeReleaseNULL(m_portTerminatedNotification);
+
   ICMXDomainRegistry::willRetireController(m_controller);
 
   IOThunderboltControlPathListener::free();
+}
+
+bool IOThunderboltICMListener::handleThunderboltPortPublishedNotification(void*, IOService* service, IONotifier*) {
+  char pathBuf[1024];
+  int pathLen = 1023;
+  service->getPath(pathBuf, &pathLen, gIOServicePlane);
+
+  kprintf("ThunderboltEnabler: Thunderbolt port %s was published, queueing rescan of PCI devices under DSB1\n", pathBuf);
+  // Setting a short timeout will effectively coalesce the publish notifications
+  m_rescanDelayTimer->setTimeoutMS(100);
+  return true;
+}
+
+bool IOThunderboltICMListener::handleThunderboltPortTerminatedNotification(void*, IOService* service, IONotifier*) {
+  char pathBuf[1024];
+  int pathLen = 1023;
+  service->getPath(pathBuf, &pathLen, gIOServicePlane);
+
+  kprintf("ThunderboltEnabler: Thunderbolt port %s was terminated, queueing rescan of PCI devices under DSB1\n", pathBuf);
+  m_rescanDelayTimer->setTimeoutMS(100);
+  return true;
+}
+
+void IOThunderboltICMListener::delayedRescanTimerFired(OSObject* owner, IOTimerEventSource*) {
+  rescanDSB1();
+}
+
+void IOThunderboltICMListener::rescanDSB1() {
+  if (!m_dsb1) {
+    kprintf("ThunderboltEnabler: Couldn't queue rescan as we couldn't find DSB1 during initialization\n");
+    return;
+  }
+
+  IORegistryIterator* regIt = IORegistryIterator::iterateOver(m_dsb1, gIOServicePlane, kIORegistryIterateRecursively);
+  for (IORegistryEntry* itObj = regIt->getNextObject(); itObj; itObj = regIt->getNextObject()) {
+    IOPCIDevice* itPCI = OSDynamicCast(IOPCIDevice, itObj);
+    if (!itPCI)
+      continue;
+    itPCI->kernelRequestProbe(kIOPCIProbeOptionNeedsScan);
+  }
+
+  m_dsb1->kernelRequestProbe(kIOPCIProbeOptionNeedsScan | kIOPCIProbeOptionDone);
 }
 
 void IOThunderboltICMListener::processResponse(IOThunderboltReceiveCommand* rxCommand) {
@@ -119,6 +205,11 @@ void IOThunderboltICMListener::handleDeviceConnected(icm_fr_event_device_connect
   } else {
     kprintf("handleDeviceConnected: controller doesn't (yet) have a CM to forward the plug event to\n");
   }
+
+  // Connected devices' PCIe ports don't appear to get set up until about 300-500ms after we receive the device-connected notification.
+  // Queue the rescan 1000ms into the future to try and avoid catching the device before the PCIe ports have been attached.
+  // (If we miss it here, we'll get another chance when the IOThunderboltPort services are published, but that'll be after a ~20 second scan delay)
+  m_rescanDelayTimer->setTimeoutMS(1000);
 }
 
 void IOThunderboltICMListener::handleDeviceDisconnected(icm_fr_event_device_disconnected* evt) {
@@ -130,6 +221,9 @@ void IOThunderboltICMListener::handleDeviceDisconnected(icm_fr_event_device_disc
   } else {
     kprintf("handleDeviceDisconnected: controller doesn't (yet) have a CM to forward the plug event to\n");
   }
+
+  // PCIe teardown seems to happen before the deviceDisconnected message is sent, so we don't need a delay here.
+  rescanDSB1();
 }
 
 void IOThunderboltICMListener::handleXDomainConnected(icm_fr_event_xdomain_connected* evt) {
