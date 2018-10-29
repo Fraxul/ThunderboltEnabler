@@ -294,7 +294,6 @@ static bool nhi_mailbox_cmd(AppleThunderboltGenericHAL* thunderboltHAL, uint32_t
 }
 
 //// ---------------------------------------------------------------------------------------------------------------------------------- ////
-bool pcie2cio_write(IOPCIDevice* pciDevice, IOByteCount vendorCapOffset, uint32_t configSpace, uint32_t port, uint32_t index, uint32_t data) {
 #define PCIE2CIO_CMD  0x30
 #define PCIE2CIO_CMD_TIMEOUT      BIT(31)
 #define PCIE2CIO_CMD_START        BIT(30)
@@ -307,6 +306,38 @@ bool pcie2cio_write(IOPCIDevice* pciDevice, IOByteCount vendorCapOffset, uint32_
 #define PCIE2CIO_WRDATA           0x34
 #define PCIE2CIO_RDDATA           0x38
 
+bool pcie2cio_read(IOPCIDevice* pciDevice, IOByteCount vendorCapOffset, uint32_t configSpace, uint32_t port, uint32_t index, uint32_t *outData) {
+  uint32_t cmd = index;
+  cmd |= (port << PCIE2CIO_CMD_PORT_SHIFT) & PCIE2CIO_CMD_PORT_MASK;
+  cmd |= (configSpace << PCIE2CIO_CMD_CS_SHIFT) & PCIE2CIO_CMD_CS_MASK;
+  cmd |= PCIE2CIO_CMD_START;
+  pciDevice->extendedConfigWrite32(vendorCapOffset + PCIE2CIO_CMD, cmd);
+
+  uint32_t cmdResult = 0;
+  // wait for up to 5 seconds for the command to complete
+  uint64_t waittime;
+  nanoseconds_to_absolutetime(5 * 1000000000ULL, &waittime);
+  uint64_t abstime_end = mach_absolute_time() + waittime;
+
+  do {
+    cmdResult = pciDevice->extendedConfigRead32(vendorCapOffset + PCIE2CIO_CMD);
+
+    if (!(cmdResult & PCIE2CIO_CMD_START)) {
+      if (cmdResult & PCIE2CIO_CMD_TIMEOUT) {
+        break;
+      }
+      *outData = pciDevice->extendedConfigRead32(vendorCapOffset + PCIE2CIO_RDDATA);
+      return true;
+    }
+
+    IOSleep(50);
+  } while (mach_absolute_time() < abstime_end);
+
+  kprintf("pcie2cio_read: command timed out. offset = 0x%llx, cmd = 0x%x, cmdResult = 0x%x\n", vendorCapOffset, cmd, cmdResult);
+  return false;
+}
+
+bool pcie2cio_write(IOPCIDevice* pciDevice, IOByteCount vendorCapOffset, uint32_t configSpace, uint32_t port, uint32_t index, uint32_t data) {
   pciDevice->extendedConfigWrite32(vendorCapOffset + PCIE2CIO_WRDATA, data);
 
   uint32_t cmd = index;
@@ -370,7 +401,7 @@ size_t pci_find_ext_capability(IOPCIDevice* pci, uint32_t capID) {
   size_t res = 0; 
 
   while (ttl-- > 0) {
-    kprintf("pci[0x%p] CAP_ID %02x offset %x\n", pci, PCI_EXT_CAP_ID(header), pos);
+    //kprintf("pci[0x%p] CAP_ID %02x offset %x\n", pci, PCI_EXT_CAP_ID(header), pos);
 
     if (PCI_EXT_CAP_ID(header) == capID)
       res = pos;
@@ -384,6 +415,80 @@ size_t pci_find_ext_capability(IOPCIDevice* pci, uint32_t capID) {
   
   return res;
 }
+
+#define PHY_PORT_CS1      0x37
+#define PHY_PORT_CS1_LINK_DISABLE BIT(14)
+#define PHY_PORT_CS1_LINK_STATE_MASK  GENMASK(29, 26)
+#define PHY_PORT_CS1_LINK_STATE_SHIFT 26
+
+enum tb_port_state {
+  TB_PORT_DISABLED  = 0, /* tb_cap_phy.disable == 1 */
+  TB_PORT_CONNECTING  = 1, /* retry */
+  TB_PORT_UP    = 2,
+  TB_PORT_UNPLUGGED = 7,
+};
+
+static int icm_reset_phy_port(IOPCIDevice* pciDevice, size_t vendorCapOffset, int phy_port) {
+  uint32_t state0, state1;
+  uint32_t port0, port1;
+  uint32_t val0, val1;
+
+  if (phy_port) {
+    port0 = 3;
+    port1 = 4;
+  } else {
+    port0 = 1;
+    port1 = 2;
+  }
+
+  /*
+   * Read link status of both null ports belonging to a single
+   * physical port.
+   */
+  if (!pcie2cio_read(pciDevice, vendorCapOffset, TB_CFG_PORT, port0, PHY_PORT_CS1, &val0))
+    return false;
+  if (!pcie2cio_read(pciDevice, vendorCapOffset, TB_CFG_PORT, port1, PHY_PORT_CS1, &val1))
+    return false;
+
+  state0 = val0 & PHY_PORT_CS1_LINK_STATE_MASK;
+  state0 >>= PHY_PORT_CS1_LINK_STATE_SHIFT;
+  state1 = val1 & PHY_PORT_CS1_LINK_STATE_MASK;
+  state1 >>= PHY_PORT_CS1_LINK_STATE_SHIFT;
+
+  /* If they are both up we need to reset them now */
+  kprintf("ThunderboltEnabler: icm_reset_phy_port(%u): state0=%u state1=%u\n", phy_port, state0, state1);
+/*
+  if (state0 != TB_PORT_UP || state1 != TB_PORT_UP)
+    return true;
+*/
+
+  val0 |= PHY_PORT_CS1_LINK_DISABLE;
+  if (!pcie2cio_write(pciDevice, vendorCapOffset, TB_CFG_PORT, port0, PHY_PORT_CS1, val0))
+    return false;
+
+  val1 |= PHY_PORT_CS1_LINK_DISABLE;
+  if (!pcie2cio_write(pciDevice, vendorCapOffset, TB_CFG_PORT, port1, PHY_PORT_CS1, val1))
+    return false;
+
+  /* Wait a bit and then re-enable both ports */
+  IOSleep(10);
+
+  if (!pcie2cio_read(pciDevice, vendorCapOffset, TB_CFG_PORT, port0, PHY_PORT_CS1, &val0))
+    return false;
+  if (!pcie2cio_read(pciDevice, vendorCapOffset, TB_CFG_PORT, port1, PHY_PORT_CS1, &val1))
+    return false;
+
+  val0 &= ~PHY_PORT_CS1_LINK_DISABLE;
+  if (!pcie2cio_write(pciDevice, vendorCapOffset, TB_CFG_PORT, port0, PHY_PORT_CS1, val0))
+    return false;
+
+  val1 &= ~PHY_PORT_CS1_LINK_DISABLE;
+  if (!pcie2cio_write(pciDevice, vendorCapOffset, TB_CFG_PORT, port1, PHY_PORT_CS1, val1))
+    return false;
+
+  return true;
+}
+
 
 //// ---------------------------------------------------------------------------------------------------------------------------------- ////
 
@@ -486,7 +591,13 @@ size_t pci_find_ext_capability(IOPCIDevice* pci, uint32_t capID) {
     kprintf("ThunderboltEnabler: ICM is in unknown mode.\n");
   }
 
-  // TODO: may need icm_reset_phy_port on both physical ports.
+  // Reset the PHY ports to ensure that devices that are already plugged in get discovered correctly
+  size_t vendorCapOffset = pci_find_ext_capability(rootBridgeDevice, PCI_EXT_CAP_ID_VNDR);
+  kprintf("ThunderboltEnabler: PCI_EXT_CAP_ID_VNDR offset = 0x%zx\n", vendorCapOffset);
+  if (!icm_reset_phy_port(rootBridgeDevice, vendorCapOffset, 0))
+    kprintf("ThunderboltEnabler: Failed to reset links on PHY port 0\n");
+  if (!icm_reset_phy_port(rootBridgeDevice, vendorCapOffset, 1))
+    kprintf("ThunderboltEnabler: Failed to reset links on PHY port 1\n");
 
   // Send the ICM driver ready command
   {
