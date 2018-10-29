@@ -14,7 +14,9 @@
 #include "IOThunderboltLocalNode.h"
 #include "IOThunderboltReceiveCommand.h"
 #include "IOThunderboltTransmitCommand.h"
+#include "ThunderboltEnabler.h"
 #include <IOKit/IOBufferMemoryDescriptor.h>
+#include <IOKit/IOMessage.h>
 #include <i386/proc_reg.h>
 
 #include "tb_constants.h"
@@ -544,6 +546,22 @@ static int icm_reset_phy_port(IOPCIDevice* pciDevice, size_t vendorCapOffset, in
     rootPortDevice->getPath(pathBuf, &pathLen, gIOServicePlane);
     pathBuf[pathLen] = '\0';
     kprintf("ThunderboltEnabler: rootPortDevice path is %s\n", pathBuf);
+  }
+
+  // Install a config message handler on the rootPortDevice so we can catch kIOMessageDeviceWillPowerOn and
+  // turn on the thunderbolt force-power early enough. PCI wake happens extremely early and we can't rely
+  // on the ThunderboltEnabler service attached to the IOACPIPlatformDevice waking itself in time.
+  {
+    OSDictionary* matchDict = IOService::serviceMatching("ThunderboltEnabler");
+    IOService* tbeService = IOService::waitForMatchingService(matchDict);
+    OSSafeReleaseNULL(matchDict);
+    ThunderboltEnabler* tbe = OSDynamicCast(ThunderboltEnabler, tbeService);
+    assert(tbe);
+
+    IOPCIDeviceConfigHandler currentHandler;
+    void* currentRef;
+    rootPortDevice->setConfigHandler(&ThunderboltEnabler::pciDeviceConfigHandler, tbe, &currentHandler, &currentRef);
+    tbe->setChainConfigHandler(currentHandler, currentRef);
   }
 
 

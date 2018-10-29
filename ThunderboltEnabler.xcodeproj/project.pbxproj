@@ -36,6 +36,10 @@
 		66BE0FD921616BB60057C6DD /* IOThunderboltNub.h in Headers */ = {isa = PBXBuildFile; fileRef = 66BE0FD521616BB60057C6DD /* IOThunderboltNub.h */; };
 		66BE0FDA21616BB60057C6DD /* IOThunderboltSwitch.h in Headers */ = {isa = PBXBuildFile; fileRef = 66BE0FD621616BB60057C6DD /* IOThunderboltSwitch.h */; };
 		66BE0FDB21616BB60057C6DD /* IOThunderboltPort.h in Headers */ = {isa = PBXBuildFile; fileRef = 66BE0FD721616BB60057C6DD /* IOThunderboltPort.h */; };
+		66BE10532186D6DE0057C6DD /* ThunderboltEnabler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 66BE10502186D6DE0057C6DD /* ThunderboltEnabler.cpp */; };
+		66BE10542186D6DE0057C6DD /* WMI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 66BE10512186D6DE0057C6DD /* WMI.cpp */; };
+		66BE10552186D6DE0057C6DD /* WMI.h in Headers */ = {isa = PBXBuildFile; fileRef = 66BE10522186D6DE0057C6DD /* WMI.h */; };
+		66BE10572186EA240057C6DD /* ThunderboltEnabler.h in Headers */ = {isa = PBXBuildFile; fileRef = 66BE10562186EA240057C6DD /* ThunderboltEnabler.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -70,6 +74,10 @@
 		66BE0FD521616BB60057C6DD /* IOThunderboltNub.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltNub.h; sourceTree = "<group>"; };
 		66BE0FD621616BB60057C6DD /* IOThunderboltSwitch.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltSwitch.h; sourceTree = "<group>"; };
 		66BE0FD721616BB60057C6DD /* IOThunderboltPort.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IOThunderboltPort.h; sourceTree = "<group>"; };
+		66BE10502186D6DE0057C6DD /* ThunderboltEnabler.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ThunderboltEnabler.cpp; sourceTree = "<group>"; };
+		66BE10512186D6DE0057C6DD /* WMI.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = WMI.cpp; sourceTree = "<group>"; };
+		66BE10522186D6DE0057C6DD /* WMI.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WMI.h; sourceTree = "<group>"; };
+		66BE10562186EA240057C6DD /* ThunderboltEnabler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ThunderboltEnabler.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -103,6 +111,10 @@
 		667A262D213F7EDB00014555 /* ThunderboltEnabler */ = {
 			isa = PBXGroup;
 			children = (
+				66BE10562186EA240057C6DD /* ThunderboltEnabler.h */,
+				66BE10502186D6DE0057C6DD /* ThunderboltEnabler.cpp */,
+				66BE10512186D6DE0057C6DD /* WMI.cpp */,
+				66BE10522186D6DE0057C6DD /* WMI.h */,
 				66BE0FD421616BB60057C6DD /* IOThunderboltLocalNode.h */,
 				66BE0FD521616BB60057C6DD /* IOThunderboltNub.h */,
 				66BE0FD721616BB60057C6DD /* IOThunderboltPort.h */,
@@ -152,10 +164,12 @@
 				66BE0FDB21616BB60057C6DD /* IOThunderboltPort.h in Headers */,
 				667A2649214DD35C00014555 /* IOThunderboltTransmitCommand.h in Headers */,
 				66AA13DD2151A2E900CD55BF /* IOThunderboltConfigReadCommand.h in Headers */,
+				66BE10572186EA240057C6DD /* ThunderboltEnabler.h in Headers */,
 				66AA13E82151D53500CD55BF /* tb_constants.h in Headers */,
 				66AA13E92151D53500CD55BF /* IOThunderboltController.h in Headers */,
 				66AA13E72151D53500CD55BF /* IOThunderboltICMListener.h in Headers */,
 				667A264A214DD35C00014555 /* IOThunderboltConfigICMCommand.h in Headers */,
+				66BE10552186D6DE0057C6DD /* WMI.h in Headers */,
 				667A264C214DD35C00014555 /* IOThunderboltReceiveCommand.h in Headers */,
 				66BE0FD921616BB60057C6DD /* IOThunderboltNub.h in Headers */,
 				66BE0FD321606D4E0057C6DD /* ICMXDomainRegistry.h in Headers */,
@@ -237,7 +251,9 @@
 				66BE0FCD21600BC50057C6DD /* ThunderboltAdapterStubs.cpp in Sources */,
 				66BE0FD221606D4E0057C6DD /* ICMXDomainRegistry.cpp in Sources */,
 				667A263C213F807A00014555 /* kern_tbe.cpp in Sources */,
+				66BE10532186D6DE0057C6DD /* ThunderboltEnabler.cpp in Sources */,
 				667A2643214C612300014555 /* IOThunderboltICM.cpp in Sources */,
+				66BE10542186D6DE0057C6DD /* WMI.cpp in Sources */,
 				667A2637213F7F7200014555 /* kern_start.cpp in Sources */,
 				66AA13E62151D53500CD55BF /* IOThunderboltICMListener.cpp in Sources */,
 				667A2639213F806100014555 /* plugin_start.cpp in Sources */,
@@ -291,6 +307,7 @@
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"PRODUCT_NAME=$(PRODUCT_NAME)",
+					LILU_CUSTOM_IOKIT_INIT,
 					"DEBUG=1",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -348,7 +365,10 @@
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_PREPROCESSOR_DEFINITIONS = "PRODUCT_NAME=$(PRODUCT_NAME)";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"PRODUCT_NAME=$(PRODUCT_NAME)",
+					LILU_CUSTOM_IOKIT_INIT,
+				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;

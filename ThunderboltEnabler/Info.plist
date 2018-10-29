@@ -27,13 +27,21 @@
       <key>CFBundleIdentifier</key>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
       <key>IOClass</key>
-      <string>$(PRODUCT_NAME:rfc1034identifier)</string>
-      <key>IOMatchCategory</key>
-      <string>$(PRODUCT_NAME:rfc1034identifier)</string>
+      <string>ThunderboltEnabler</string>
+      <key>IOProbeScore</key>
+      <integer>16384</integer>
       <key>IOProviderClass</key>
-      <string>IOResources</string>
-      <key>IOResourceMatch</key>
-      <string>IOKit</string>
+      <string>IOACPIPlatformDevice</string>
+      <key>IONameMatch</key>
+      <array>
+        <string>PNP0C14</string>
+        <string>pnp0c14</string>
+      </array>
+      <key>IOPropertyMatch</key>
+      <dict>
+        <key>_UID</key>
+        <string>TBFP</string>
+      </dict>
     </dict>
     <key>AppleThunderboltPCIDownAdapterStub</key>
     <dict>
@@ -98,6 +106,8 @@
     <string>17.7</string>
     <key>com.apple.kpi.mach</key>
     <string>17.7</string>
+    <key>com.apple.iokit.IOACPIFamily</key>
+    <string>1.4</string>
     <key>com.apple.iokit.IOPCIFamily</key>
     <string>2.9</string>
     <key>com.apple.driver.AppleThunderboltNHI</key>
