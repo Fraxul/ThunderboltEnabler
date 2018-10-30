@@ -65,6 +65,8 @@ static KernelPatcher::KextInfo kexts[] {
 
 int XDomainUUIDRequestCommand_submit(void* that);
 int XDomainUUIDRequestCommand_submitSynchronous(void* that);
+int ControlPath_sleep(void* that);
+int ControlPath_wake(void* that);
 
 bool ThunderboltIPService_start(void*, IOService*);
 static bool(*ThunderboltIPService_start_orig)(void*, IOService*) = nullptr;
@@ -80,6 +82,10 @@ extern "C" {
   int _ZN26IOThunderboltConfigCommand17submitSynchronousEv(void*);
 
   int _ZN44IOThunderboltConfigXDomainUUIDRequestCommand8completeEi(void*, int);
+
+  extern size_t _ZTV24IOThunderboltControlPath;
+  int _ZN24IOThunderboltControlPath5sleepEv(void*);
+  int _ZN24IOThunderboltControlPath4wakeEv(void*);
 
   // AppleThunderboltNHI.kext
   int _ZN31AppleThunderboltNHITransmitRing18submitCommandToNHIEP28IOThunderboltTransmitCommand(void*, IOThunderboltTransmitCommand*);
@@ -131,7 +137,11 @@ void TBE::init() {
   size_t* uuidreq_submitSynchronous_offset = scanVtableForFunction(&_ZTV44IOThunderboltConfigXDomainUUIDRequestCommand, reinterpret_cast<void*>(&_ZN26IOThunderboltConfigCommand17submitSynchronousEv));
   kprintf("ThunderboltEnabler: IOThunderboltConfigXDomainUUIDRequestCommand vtable contains IOThunderboltConfigCommand::submitSynchronous (%p) at %p\n", reinterpret_cast<void*>(&_ZN26IOThunderboltConfigCommand17submitSynchronousEv), uuidreq_submitSynchronous_offset);
 
-  if (!(uuidreq_submit_offset && uuidreq_submitSynchronous_offset)) {
+  // Compute offsets to patch in the IOThunderboltControlPath vtable
+  size_t* controlPath_sleep_offset = scanVtableForFunction(&_ZTV24IOThunderboltControlPath, reinterpret_cast<void*>(&_ZN24IOThunderboltControlPath5sleepEv));
+  size_t* controlPath_wake_offset = scanVtableForFunction(&_ZTV24IOThunderboltControlPath, reinterpret_cast<void*>(&_ZN24IOThunderboltControlPath4wakeEv));
+
+  if (!(uuidreq_submit_offset && uuidreq_submitSynchronous_offset && controlPath_sleep_offset && controlPath_wake_offset)) {
     kprintf("ThunderboltEnabler: ERROR: Unable to find some vtable offsets to patch, bailing out.\n");
     return;
   }
@@ -167,6 +177,8 @@ void TBE::init() {
   // Patch vtables
   *uuidreq_submit_offset = reinterpret_cast<size_t>(&XDomainUUIDRequestCommand_submit);
   *uuidreq_submitSynchronous_offset = reinterpret_cast<size_t>(&XDomainUUIDRequestCommand_submitSynchronous);
+  *controlPath_sleep_offset = reinterpret_cast<size_t>(&ControlPath_sleep);
+  *controlPath_wake_offset = reinterpret_cast<size_t>(&ControlPath_wake);
 
   // Restore protected page write state
   if (cr0 & CR0_WP) {
@@ -494,6 +506,22 @@ static int icm_reset_phy_port(IOPCIDevice* pciDevice, size_t vendorCapOffset, in
 
 //// ---------------------------------------------------------------------------------------------------------------------------------- ////
 
+void doICMReady(IOThunderboltController* controller) {
+  IOThunderboltConfigICMCommand* icmReady = IOThunderboltConfigICMCommand::withController(controller);
+  icm_pkg_driver_ready driver_ready_req;
+  icmReady->setRequestData(&driver_ready_req, sizeof(icm_pkg_driver_ready));
+
+  int res = icmReady->submitSynchronous();
+  kprintf("ThunderboltEnabler: ICM ready command sent, res = %d %s\n", res, res == 0 ? "(ok)" : "(error)");
+  if (res == 0) {
+    icm_ar_pkg_driver_ready_response* resp = reinterpret_cast<icm_ar_pkg_driver_ready_response*>(icmReady->responseData());
+    kprintf("  hdr: code=%x flags=%x packet_id=%x total_packets=%x\n", resp->hdr.code & 0xff, resp->hdr.flags & 0xff, resp->hdr.packet_id & 0xff, resp->hdr.total_packets & 0xff);
+    kprintf("  romver=%x ramver=%x info=%x\n", resp->romver & 0xff, resp->ramver & 0xff, resp->info & 0xffff);
+  }
+  OSSafeReleaseNULL(icmReady);
+}
+
+
 #define REG_FW_STS  0x39944
 
 #define REG_FW_STS_ICM_EN         BIT(0) 
@@ -618,21 +646,7 @@ static int icm_reset_phy_port(IOPCIDevice* pciDevice, size_t vendorCapOffset, in
     kprintf("ThunderboltEnabler: Failed to reset links on PHY port 1\n");
 
   // Send the ICM driver ready command
-  {
-    IOThunderboltConfigICMCommand* icmReady = IOThunderboltConfigICMCommand::withController(controller);
-    icm_pkg_driver_ready driver_ready_req;
-    icmReady->setRequestData(&driver_ready_req, sizeof(icm_pkg_driver_ready));
-
-    int res = icmReady->submitSynchronous();
-    kprintf("ThunderboltEnabler: ICM ready command sent, res = %d %s\n", res, res == 0 ? "(ok)" : "(error)");
-    if (res == 0) {
-      icm_ar_pkg_driver_ready_response* resp = reinterpret_cast<icm_ar_pkg_driver_ready_response*>(icmReady->responseData());
-      kprintf("  hdr: code=%x flags=%x packet_id=%x total_packets=%x\n", resp->hdr.code & 0xff, resp->hdr.flags & 0xff, resp->hdr.packet_id & 0xff, resp->hdr.total_packets & 0xff);
-      kprintf("  romver=%x ramver=%x info=%x\n", resp->romver & 0xff, resp->ramver & 0xff, resp->info & 0xffff);
-    }
-    OSSafeReleaseNULL(icmReady);
-  }
-
+  doICMReady(controller);
 
   // Wait for the switch config space to become accessible
   {
@@ -788,6 +802,28 @@ static int icm_reset_phy_port(IOPCIDevice* pciDevice, size_t vendorCapOffset, in
 #endif
 
 //// ---------------------------------------------------------------------------------------------------------------------------------- ////
+
+// Patched functions for the IOThunderboltControlPath class
+int ControlPath_sleep(void* that) {
+  // Before sleeping, we need to tell the ICM that we're shutting down the driver and to save its state.
+  IOThunderboltController* controller = *reinterpret_cast<IOThunderboltController**>((reinterpret_cast<char*>(that) + 0x10));
+  void* thunderboltNHI = *reinterpret_cast<void**>((reinterpret_cast<char*>(controller) + 0x88));
+  AppleThunderboltGenericHAL* thunderboltHAL = *reinterpret_cast<AppleThunderboltGenericHAL**>((reinterpret_cast<char*>(thunderboltNHI) + 0x90));
+
+#define NHI_MAILBOX_SAVE_DEVS 0x05
+  nhi_mailbox_cmd(thunderboltHAL, NHI_MAILBOX_SAVE_DEVS, 0);
+
+  return _ZN24IOThunderboltControlPath5sleepEv(that);
+}
+
+int ControlPath_wake(void* that) {
+  int res = _ZN24IOThunderboltControlPath4wakeEv(that);
+  // After waking, but before returning control, we need to tell the ICM that the driver is coming online.
+  IOThunderboltController* controller = *reinterpret_cast<IOThunderboltController**>((reinterpret_cast<char*>(that) + 0x10));
+  doICMReady(controller);
+
+  return res;
+}
 
 // Patched functions for the IOThunderboltConfigXDomainUUIDRequestCommand class
 
