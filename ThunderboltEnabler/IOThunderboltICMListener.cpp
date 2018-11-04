@@ -46,6 +46,10 @@ bool IOThunderboltICMListener::initWithController(IOThunderboltController* contr
   m_portTerminatedNotification = IOService::addMatchingNotification(gIOTerminatedNotification, matchDict, OSMemberFunctionCast(IOServiceMatchingNotificationHandler, this, &IOThunderboltICMListener::handleThunderboltPortTerminatedNotification), this, NULL);
   OSSafeReleaseNULL(matchDict);
 
+  matchDict = IOService::serviceMatching("IOPCIDevice");
+  m_pciDevicePublishedNotification = IOService::addMatchingNotification(gIOPublishNotification, matchDict, OSMemberFunctionCast(IOServiceMatchingNotificationHandler, this, &IOThunderboltICMListener::handlePCIDevicePublishedNotification), this, NULL);
+  OSSafeReleaseNULL(matchDict);
+
   // IOService -> IOThunderboltNHI -> AppleThunderboltNHI -> AppleThunderboltNHIType{1,2,3}
   void* thunderboltNHI = *reinterpret_cast<void**>((reinterpret_cast<char*>(controller_) + 0x88));
   // IOService -> AppleThunderboltGenericHAL -> AppleThunderboltHAL
@@ -81,6 +85,7 @@ void IOThunderboltICMListener::free() {
 
   OSSafeReleaseNULL(m_portPublishedNotification);
   OSSafeReleaseNULL(m_portTerminatedNotification);
+  OSSafeReleaseNULL(m_pciDevicePublishedNotification);
 
   ICMXDomainRegistry::willRetireController(m_controller);
 
@@ -105,6 +110,26 @@ bool IOThunderboltICMListener::handleThunderboltPortTerminatedNotification(void*
 
   kprintf("ThunderboltEnabler: Thunderbolt port %s was terminated, queueing rescan of PCI devices under DSB1\n", pathBuf);
   m_rescanDelayTimer->setTimeoutMS(100);
+  return true;
+}
+
+bool IOThunderboltICMListener::handlePCIDevicePublishedNotification(void* refCon, IOService* service, IONotifier*) {
+  char pathBuf[1024];
+  int pathLen = 1023;
+  service->getPath(pathBuf, &pathLen, gIOServicePlane);
+
+  for (IORegistryEntry* ancestor = service->getParentEntry(gIOServicePlane); ancestor != IORegistryEntry::getRegistryRoot(); ancestor = ancestor->getParentEntry(gIOServicePlane)) {
+    IOPCIDevice* pci = OSDynamicCast(IOPCIDevice, ancestor);
+    if (!pci)
+      continue;
+    if (pci == m_dsb1) {
+      kprintf("ThunderboltEnabler: Published PCI device %s is under DSB1, marking as IOPCITunnelled\n", pathBuf);
+      service->setProperty("IOPCITunnelled", kOSBooleanTrue);
+      return true;
+    }
+  }
+
+
   return true;
 }
 

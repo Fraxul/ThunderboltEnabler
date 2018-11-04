@@ -23,11 +23,13 @@ protected:
   IOThunderboltController* m_controller;
   IONotifier* m_portPublishedNotification;
   IONotifier* m_portTerminatedNotification;
+  IONotifier* m_pciDevicePublishedNotification;
   IOTimerEventSource* m_rescanDelayTimer;
   IOPCIDevice* m_dsb1;
 
   bool handleThunderboltPortPublishedNotification(void* refCon, IOService*, IONotifier*);
   bool handleThunderboltPortTerminatedNotification(void* refCon, IOService*, IONotifier*);
+  bool handlePCIDevicePublishedNotification(void* refCon, IOService*, IONotifier*);
   void delayedRescanTimerFired(OSObject* owner, IOTimerEventSource*);
   void rescanDSB1();
 

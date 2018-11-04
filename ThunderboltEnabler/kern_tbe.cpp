@@ -89,6 +89,9 @@ extern "C" {
 
   // AppleThunderboltNHI.kext
   int _ZN31AppleThunderboltNHITransmitRing18submitCommandToNHIEP28IOThunderboltTransmitCommand(void*, IOThunderboltTransmitCommand*);
+
+  // IOPCIFamily.kext
+  extern const OSSymbol* gIOPCITunnelledKey;
 }
 
 static size_t* scanVtableForFunction(size_t* vtable_base, void* function) {
@@ -189,6 +192,13 @@ void TBE::init() {
   asm volatile("sti");
 
   kprintf("ThunderboltEnabler: done applying patch to IOThunderboltConnectionManager::withController()\n");
+
+  // Patch over the IOPCITunnelled symbol in IOPCIFamily. We want to use this symbol ourselves to mark PCI devices downstream of the TB controller
+  // as removable/ejectable to the system (think eGPUs), but IOPCIFamily will see that key and reject IOPCIDevice matches unless they're IOPCITunnelCompatible.
+  if (gIOPCITunnelledKey == OSSymbol::withCString("IOPCITunnelled")) {
+    kprintf("ThunderboltEnabler: disabling IOPCITunnelled behavior in IOPCIFamily\n");
+    gIOPCITunnelledKey = OSSymbol::withCString("TBETunnelled_disabled");
+  }
 
   lilu.onProcLoad(&procSysUIserver, 1, nullptr, nullptr, &expressCardMenuExtraPatch, 1);
 
