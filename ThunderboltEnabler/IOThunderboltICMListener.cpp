@@ -143,6 +143,11 @@ void IOThunderboltICMListener::rescanDSB1() {
     return;
   }
 
+  if (!m_dsb1->getProperty("TBEPCIReady")) {
+    kprintf("ThunderboltEnabler: First requested rescan of DSB1, marking TBEPCIReady\n");
+    m_dsb1->setProperty("TBEPCIReady", kOSBooleanTrue);
+  }
+
   IORegistryIterator* regIt = IORegistryIterator::iterateOver(m_dsb1, gIOServicePlane, kIORegistryIterateRecursively);
   for (IORegistryEntry* itObj = regIt->getNextObject(); itObj; itObj = regIt->getNextObject()) {
     IOPCIDevice* itPCI = OSDynamicCast(IOPCIDevice, itObj);

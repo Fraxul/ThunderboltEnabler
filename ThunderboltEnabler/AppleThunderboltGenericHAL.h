@@ -53,7 +53,7 @@ public:
   virtual IOPCIDevice* getPCIDevice();
   virtual void forcePowerState(unsigned long);
   virtual void enableDeepSleep(bool);
-  virtual void isConfigAccessEnabled();
+  virtual bool isConfigAccessEnabled();
   virtual void poweredStart();
   virtual void createNHI();
   virtual void setupPowerManagement();

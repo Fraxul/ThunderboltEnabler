@@ -2,6 +2,7 @@
 
 #include <Headers/kern_api.hpp>
 #include <Headers/kern_devinfo.hpp>
+#include <Headers/kern_disasm.hpp>
 #include <Headers/kern_iokit.hpp>
 #include "AppleThunderboltGenericHAL.h"
 #include "ICMXDomainRegistry.h"
@@ -18,8 +19,11 @@
 #include <IOKit/IOBufferMemoryDescriptor.h>
 #include <IOKit/IOMessage.h>
 #include <i386/proc_reg.h>
+#include <libkern/libkern.h>
+#include <mach/vm_map.h>
 
 #include "tb_constants.h"
+#include "iopcifamily_private.h"
 
 #define LOG_PACKET_BYTES 0
 
@@ -67,6 +71,10 @@ int XDomainUUIDRequestCommand_submit(void* that);
 int XDomainUUIDRequestCommand_submitSynchronous(void* that);
 int ControlPath_sleep(void* that);
 int ControlPath_wake(void* that);
+void IOPCIConfigurator_bridgeScanBus(void* that, IOPCIConfigEntry*, uint8_t, uint32_t);
+int32_t IOPCIConfigurator_scanProc(void* that, void* ref, IOPCIConfigEntry*);
+static void(*IOPCIConfigurator_bridgeScanBus_orig)(void*, IOPCIConfigEntry*, uint8_t, uint32_t) = nullptr;
+static int32_t(*IOPCIConfigurator_scanProc_orig)(void*, void*, IOPCIConfigEntry*) = nullptr;
 
 bool ThunderboltIPService_start(void*, IOService*);
 static bool(*ThunderboltIPService_start_orig)(void*, IOService*) = nullptr;
@@ -92,7 +100,37 @@ extern "C" {
 
   // IOPCIFamily.kext
   extern const OSSymbol* gIOPCITunnelledKey;
+  extern void _ZN17IOPCIConfigurator16bridgeProbeChildEP16IOPCIConfigEntry17IOPCIAddressSpace(void*, void*, uint32_t, uint32_t);
+  extern IOReturn _ZN15IOPCI2PCIBridge9checkLinkEj(void*, uint32_t);
+  extern void _ZN17IOPCIConfigurator13bridgeScanBusEP16IOPCIConfigEntryh(void*, IOPCIConfigEntry*, uint8_t, uint32_t);
+  extern void _ZN17IOPCIConfigurator8scanProcEPvP16IOPCIConfigEntry(void*, void*, IOPCIConfigEntry*);
 }
+
+const uint8_t IOPCIConfiguratorBridgeProbeChildLinkInterruptPatchFind[] = {
+  // This corresponds to the condition in these lines of code from IOPCIFamily-320.30.2 - IOPCIConfigurator.cpp:1842
+  //    if ((kPCIHotPlugTunnel == (kPCIHPTypeMask & bridge->supportsHotPlug))     <<<<====
+  //      && (0x60 == (0xf0 & expressCaps))) // downstream port                   <<<<====
+  //    {
+  //      if ((kLinkCapDataLinkLayerActiveReportingCapable & linkCaps)
+  //       && (kSlotCapHotplug & slotCaps))
+  //      {
+  //        child->linkInterrupts = true;
+  //      }
+  //    }
+  // We ungate the hotplug type mask and downstream port requirements and set the linkInterrupts value based only on the
+  // reported link and express caps bits. This allows the root port for the thunderbolt controller to be correctly marked as
+  // hotplug + link-interrupt capable and lets the DSBs enumerate after force-power-on without having to inject any DT properties.
+
+  // Just NOP out all of these following instructions:
+  //0x81, 0xE3, 0xF0, 0x00, 0x00, 0x00, // and     ebx, 0F0h
+  //0x83, 0xFB, 0x60,                   // cmp     ebx, 60h
+  0x75, 0x19,                         // jnz     short loc_17037
+  0x48, 0x8B, 0x45, 0xC8,             // mov     rax, [rbp+var_38]
+  0x8A, 0x80, 0x21, 0x01, 0x00, 0x00, // mov     al, [rax+121h]
+  0x24, 0xF0,                         // and     al, 0F0h
+  0x3C, 0x30,                         // cmp     al, 30h
+  0x75, 0x09,                         // jnz     short loc_17037
+};
 
 static size_t* scanVtableForFunction(size_t* vtable_base, void* function) {
   // Skip over the first couple of zero entries. There are typically two zero-slots in IOKit vtables.
@@ -106,7 +144,65 @@ static size_t* scanVtableForFunction(size_t* vtable_base, void* function) {
   return NULL;
 }
 
+static const uint8_t* memmem(const uint8_t* big, size_t big_length, const uint8_t* little, size_t little_length) {
+  if (little_length > big_length)
+    return NULL;
+
+  const uint8_t* bigmax = big + (big_length - little_length);
+  for (const uint8_t* bp = big; bp != bigmax; ++bp) {
+    if (memcmp(bp, little, little_length) == 0)
+      return bp;
+  }
+
+  return NULL;
+}
+
 static void TBE_onPatcherLoaded_callback(void* that, KernelPatcher& patcher) { reinterpret_cast<TBE*>(that)->onPatcherLoaded(patcher); }
+
+
+static const size_t s_tempExecutableMemorySize = 4096;
+static uint8_t s_tempExecutableMemory[s_tempExecutableMemorySize] __attribute__((section("__TEXT,__text")));
+static size_t s_tempExecutableMemoryOffset = 0;
+
+static size_t assembleIndirectAbsoluteJump(uint8_t* out, const void* target) {
+  // jmp qword ptr [rip], then an 8-byte target address immediately following.
+  out[0] = 0xff;
+  out[1] = 0x25;
+  out[2] = 0;
+  out[3] = 0;
+  out[4] = 0;
+  out[5] = 0;
+  lilu_os_memcpy(out + 6, &target, sizeof(uint64_t));
+  return 14;
+}
+
+static void* routeFunctionWithTrampolineInternal(void* originalFunction, const void* targetFunction) {
+  // Route originalFunction by overwriting its prologue with an absolute JMP to targetFunction. Generate a trampoline that
+  // can be used to call originalFunction and return its address.
+
+  uint8_t* trampolineStart = s_tempExecutableMemory + s_tempExecutableMemoryOffset;
+  size_t trampolineLength = Disassembler::quickInstructionSize(reinterpret_cast<mach_vm_address_t>(originalFunction), 14);
+  uint8_t* originalFunctionResumePoint = reinterpret_cast<uint8_t*>(originalFunction) + trampolineLength;
+
+  // Assemble the trampoline: original prologue, followed by a jump to the resume point into the end of the trampoline.
+  lilu_os_memcpy(trampolineStart, originalFunction, trampolineLength);
+  s_tempExecutableMemoryOffset += trampolineLength + assembleIndirectAbsoluteJump(trampolineStart + trampolineLength, originalFunctionResumePoint);
+  s_tempExecutableMemoryOffset = ((s_tempExecutableMemoryOffset + 15) & (~0xf)); // pad-align
+
+  asm volatile("clflush (%0)" : : "r" (trampolineStart));
+  asm volatile("clflush (%0)" : : "r" (trampolineStart + 16));
+  asm volatile("mfence");
+
+  // Assemble a jump to the route function into the beginning of the original function, overwriting the original prologue (now moved to the trampoline)
+  assembleIndirectAbsoluteJump(reinterpret_cast<uint8_t*>(originalFunction), targetFunction);
+
+  asm volatile("clflush (%0)" : : "r" (reinterpret_cast<uint8_t*>(originalFunction)));
+  asm volatile("clflush (%0)" : : "r" (reinterpret_cast<uint8_t*>(originalFunction) + 16));
+  asm volatile("mfence");
+
+  return trampolineStart;
+}
+
 
 void TBE::init() {
   callbackInst = this;
@@ -114,24 +210,8 @@ void TBE::init() {
   kprintf("ThunderboltEnabler: TBE::init()\n");
   ICMXDomainRegistry::staticInit();
 
-
-  // We need to make a very early patch to IOThunderboltConnectionManager::withController() to ensure that we can hook the TB controller
-  // initialization at the correct time. We need to redirect this function before Lilu's patcher loads, so we can't use it.
-  // We don't need to preserve the original (which would require making a trampoline), though, so it's a little easier: we just clobber
-  // the front of the function with a relative jump instruction and then reimplement it in the end of our replacement function.
-
-  // Compute the function offset
-  ssize_t offset = reinterpret_cast<size_t>(&connectionManagerWithController) - reinterpret_cast<size_t>(&_ZN30IOThunderboltConnectionManager14withControllerEP23IOThunderboltController);
-  offset -= 5; // adjust the offset for the 5 byte length of our JMP instruction
-  int32_t offset32 = (int32_t) offset;
-  kprintf("ThunderboltEnabler: IOThunderboltConnectionManager::withController @ 0x%p, TBE::connectionManagerWithController @ 0x%p\n",
-    &_ZN30IOThunderboltConnectionManager14withControllerEP23IOThunderboltController, &connectionManagerWithController);
-
-  kprintf("ThunderboltEnabler: offset64 = 0x%zx, offset32 = 0x%x\n", offset, offset32);
-  if (offset != offset32) {
-    kprintf("ThunderboltEnabler: ERROR: offset doesn't fit into int32? can't assemble patch.\n");
-    return;
-  }
+  // We need to make some very early patches to IOThunderboltFamily and IOPCIFamily.
+  // These need to be in place well before Lilu's patcher is ready, so we are unfortunately on our own here.
 
   kprintf("ThunderboltEnabler: Scanning vtable at %p\n", &_ZTV44IOThunderboltConfigXDomainUUIDRequestCommand);
   // Compute offsets to patch in the IOThunderboltConfigXDomainUUIDRequestCommand vtable
@@ -149,8 +229,15 @@ void TBE::init() {
     return;
   }
 
-  // Save original AppleThunderboltIPService::start() function pointer
-  
+  // Find offset to NOP out in IOPCIFamily'IOPCIConfigurator::bridgeProbeChild. The function is 0x64c bytes long in 10.13.6. We'll search up to 0x1000 bytes to be safe.
+  uint8_t* bridgeProbeChild_functionStart = reinterpret_cast<uint8_t*>(&_ZN17IOPCIConfigurator16bridgeProbeChildEP16IOPCIConfigEntry17IOPCIAddressSpace);
+  size_t bridgeProbeChild_scanLength = 0x1000;
+
+  uint8_t* bridgeProbeChild_patchOffset = const_cast<uint8_t*>(memmem(bridgeProbeChild_functionStart, bridgeProbeChild_scanLength, IOPCIConfiguratorBridgeProbeChildLinkInterruptPatchFind, arrsize(IOPCIConfiguratorBridgeProbeChildLinkInterruptPatchFind)));
+  if (!bridgeProbeChild_patchOffset) {
+    kprintf("ThunderboltEnabler: ERROR: Unable to find patch offset in IOPCIFamily.kext IOPCIConfigurator::bridgeProbeChild\n");
+    return;
+  }
 
   // Disable interrupts while we mess around with CR0
   asm volatile("cli");
@@ -161,27 +248,27 @@ void TBE::init() {
     set_cr0(cr0 & (~CR0_WP));
   }
 
-  // Assemble a relative JMP
-  uint8_t* p = reinterpret_cast<uint8_t*>(&_ZN30IOThunderboltConnectionManager14withControllerEP23IOThunderboltController);
-  *(p++) = 0xe9; // JMP rel32off
-  *(p++) = offset32 & 0xff;
-  *(p++) = (offset32 >> 8) & 0xff;
-  *(p++) = (offset32 >> 16) & 0xff;
-  *(p++) = (offset32 >> 24) & 0xff;
-
-  // Fill the rest of the line with NOPs
-  for (size_t i = 0; i < (16 - 5); ++i)
-    *(p++) = 0x90;
-
-  // Flush the cache line containing the patched function
-  asm volatile("mfence");
-  asm volatile("clflush (%0)" : : "r" (&_ZN30IOThunderboltConnectionManager14withControllerEP23IOThunderboltController));
+  // Replace IOThunderboltConnectionManager::withController() with our version. (We don't call the original so we don't bother generating a trampoline)
+  assembleIndirectAbsoluteJump((uint8_t*) &_ZN30IOThunderboltConnectionManager14withControllerEP23IOThunderboltController, (void*) &connectionManagerWithController);
 
   // Patch vtables
   *uuidreq_submit_offset = reinterpret_cast<size_t>(&XDomainUUIDRequestCommand_submit);
   *uuidreq_submitSynchronous_offset = reinterpret_cast<size_t>(&XDomainUUIDRequestCommand_submitSynchronous);
   *controlPath_sleep_offset = reinterpret_cast<size_t>(&ControlPath_sleep);
   *controlPath_wake_offset = reinterpret_cast<size_t>(&ControlPath_wake);
+
+  // Patch bridgeProbeChild
+  memset(bridgeProbeChild_patchOffset, 0x90, arrsize(IOPCIConfiguratorBridgeProbeChildLinkInterruptPatchFind));
+
+  // Flush the cache lines containing the patched functions
+  asm volatile("mfence");
+  asm volatile("clflush (%0)" : : "r" (&_ZN30IOThunderboltConnectionManager14withControllerEP23IOThunderboltController));
+  asm volatile("clflush (%0)" : : "r" (bridgeProbeChild_patchOffset));
+  asm volatile("clflush (%0)" : : "r" (bridgeProbeChild_patchOffset + 16));
+
+  // Route IOPCIConfigurator functions
+  IOPCIConfigurator_bridgeScanBus_orig = reinterpret_cast<void(*)(void*, IOPCIConfigEntry*, uint8_t, uint32_t)>(routeFunctionWithTrampolineInternal((void*) &_ZN17IOPCIConfigurator13bridgeScanBusEP16IOPCIConfigEntryh, (void*) &IOPCIConfigurator_bridgeScanBus));
+  IOPCIConfigurator_scanProc_orig = reinterpret_cast<int32_t(*)(void*, void*, IOPCIConfigEntry*)>(routeFunctionWithTrampolineInternal((void*) &_ZN17IOPCIConfigurator8scanProcEPvP16IOPCIConfigEntry, (void*) &IOPCIConfigurator_scanProc));
 
   // Restore protected page write state
   if (cr0 & CR0_WP) {
@@ -191,7 +278,7 @@ void TBE::init() {
   // Done with no-interrupts mode
   asm volatile("sti");
 
-  kprintf("ThunderboltEnabler: done applying patch to IOThunderboltConnectionManager::withController()\n");
+  kprintf("ThunderboltEnabler: IOThunderboltFamily and IOPCIFamily code patches applied.\n");
 
   // Patch over the IOPCITunnelled symbol in IOPCIFamily. We want to use this symbol ourselves to mark PCI devices downstream of the TB controller
   // as removable/ejectable to the system (think eGPUs), but IOPCIFamily will see that key and reject IOPCIDevice matches unless they're IOPCITunnelCompatible.
@@ -602,6 +689,12 @@ void doICMReady(IOThunderboltController* controller) {
     tbe->setChainConfigHandler(currentHandler, currentRef);
   }
 
+  bool configAccessEnabled = thunderboltHAL->isConfigAccessEnabled();
+  kprintf("ThunderboltEnabler: configAccessEnabled = %d, pciDevice @ %p\n", configAccessEnabled, thunderboltHAL->getPCIDevice());
+  if (configAccessEnabled) {
+    // Config access must be disabled for MMIO register access (register{Read,Write}*)
+    thunderboltHAL->enableConfigAccess(false);
+  }
 
   int fw_status = thunderboltHAL->registerRead32(REG_FW_STS);
   kprintf("ThunderboltEnabler: REG_FW_STS = 0x%x\n", fw_status);
@@ -636,16 +729,10 @@ void doICMReady(IOThunderboltController* controller) {
     "CM_MODE",
   };
 
-  kprintf("ThunderboltEnabler: ICM mode %u (%s)\n", icm_mode, icm_mode_strings[icm_mode]);
+  kprintf("ThunderboltEnabler: ICM mode %u (%s)\n", icm_mode, icm_mode <= 3 ? icm_mode_strings[icm_mode] : "(unknown)");
 
-  if (icm_mode == 0) {
-    kprintf("ThunderboltEnabler: ICM is in safe mode.\n");
-  } else if (icm_mode == 3) { // CM_MODE
 #define NHI_MAILBOX_ALLOW_ALL_DEVS  0x23
-    nhi_mailbox_cmd(thunderboltHAL, NHI_MAILBOX_ALLOW_ALL_DEVS, 0);
-  } else {
-    kprintf("ThunderboltEnabler: ICM is in unknown mode.\n");
-  }
+  nhi_mailbox_cmd(thunderboltHAL, NHI_MAILBOX_ALLOW_ALL_DEVS, 0);
 
   // Reset the PHY ports to ensure that devices that are already plugged in get discovered correctly
   size_t vendorCapOffset = pci_find_ext_capability(rootBridgeDevice, PCI_EXT_CAP_ID_VNDR);
@@ -892,3 +979,85 @@ bool ThunderboltIPService_start(void* that, IOService* provider) {
   // Call through to the original function
   return ThunderboltIPService_start_orig(that, provider);
 }
+
+bool isThunderboltBridge(uint32_t vendorProduct) {
+  uint16_t vendor = vendorProduct & 0xffff;
+  uint16_t product = (vendorProduct >> 16) & 0xffff;
+
+  if (vendor != 0x8086)
+    return false;
+
+  switch (product) {
+    case PCI_DEVICE_ID_INTEL_WIN_RIDGE_2C_BRIDGE:
+    case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_BRIDGE:
+    case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_BRIDGE:
+    case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_BRIDGE:
+    case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_2C_BRIDGE:
+    case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_BRIDGE:
+    case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_DD_BRIDGE:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+void IOPCIConfigurator_bridgeScanBus(void* that, IOPCIConfigEntry* device, uint8_t busNum, uint32_t resetMask) {
+#if 0
+  kprintf("ThunderboltEnabler: IOPCIConfigurator::bridgeScanBus: i[%x]%u:%u:%u(0x%x:0x%x) dtEntry=%p acpiDevice=%p\n",
+    device->id, device->space.s.busNum, device->space.s.deviceNum, device->space.s.functionNum,
+    (device->vendorProduct & 0xffff), (device->vendorProduct >> 16),
+    device->dtEntry, device->acpiDevice);
+#endif
+
+  if (isThunderboltBridge(device->vendorProduct)) {
+    if ((device->parent == nullptr) || !isThunderboltBridge(device->parent->vendorProduct)) {
+      kprintf("ThunderboltEnabler: device is a Thunderbolt upstream bridge\n");
+
+    } else {
+      kprintf("ThunderboltEnabler: device is Thunderbolt downstream bridge %u\n", device->space.s.deviceNum);
+
+      if (device->space.s.deviceNum == 1) { // DSB1
+        if (device->dtEntry && (!device->dtEntry->getProperty("TBEPCIReady"))) {
+          kprintf("ThunderboltEnabler: DSB1 does not have TBEPCIReady set, deferring bridge scan.\n");
+          return;
+        }
+      }
+    }
+  }
+
+
+  IOPCIConfigurator_bridgeScanBus_orig(that, device, busNum, resetMask);
+}
+
+int32_t IOPCIConfigurator_scanProc(void* that, void* ref, IOPCIConfigEntry* bridge) {
+#if 0
+  kprintf("ThunderboltEnabler: scanProc(%p)\n", bridge);
+#endif
+
+  int32_t res = IOPCIConfigurator_scanProc_orig(that, ref, bridge);
+
+  if (isThunderboltBridge(bridge->vendorProduct)) {
+    for (IOPCIConfigEntry* child = bridge->child; child; child = child->peer) {
+      if (child->space.s.deviceNum == 1 && isThunderboltBridge(child->vendorProduct)) {
+        // DSB1 of a Thunderbolt bridge complex. Mark it as a hotplug root and turn on range splay.
+        // This would've been done by bridgeConnectDeviceTree if the device had a DT entry and it was
+        // marked removable in ACPI (see IOPCIIsHotplugPort), but we can just set that up here to avoid
+        // relying on an ACPI/DT setup.
+        kprintf("ThunderboltEnabler: IOPCIConfigurator::scanProc(%p): child %p (i[%x]%u:%u:%u(0x%x:0x%x) identified as DSB1, marking kPCIHotPlugRoot and enabling splay\n",
+          bridge, child, child->id, child->space.s.busNum, child->space.s.deviceNum, child->space.s.functionNum, (child->vendorProduct & 0xffff), (child->vendorProduct >> 16));
+
+        child->supportsHotPlug = kPCIHotPlugRoot;
+
+        for (int i = kIOPCIRangeBridgeMemory; i < kIOPCIRangeCount; i++) {
+          if (!child->ranges[i])
+            continue;
+
+          child->ranges[i]->flags |= kIOPCIRangeFlagSplay;
+        }
+      }
+    }
+  }
+  return res;
+}
+
